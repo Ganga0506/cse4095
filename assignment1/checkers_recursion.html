@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Untangling the checkers — a recursion, watched</title>
+<style>
+  :root{
+    --felt-1:#1c3328;
+    --felt-2:#142720;
+    --wood:#5b3a24;
+    --wood-dark:#3f2717;
+    --ivory:#efe7d3;
+    --ivory-dim:#c9c0a9;
+    --red-lo:#7c1c10;
+    --red-hi:#e2643c;
+    --black-lo:#0c0a08;
+    --black-hi:#4a453c;
+    --brass:#c9a24b;
+    --brass-dim:#8a7134;
+    --line: rgba(239,231,211,0.14);
+    --dur: 480ms;
+  }
+  @media (prefers-reduced-motion: reduce){
+    :root{ --dur: 0ms; }
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0;
+    background: radial-gradient(ellipse at 50% -10%, var(--felt-1), var(--felt-2) 70%);
+    color: var(--ivory);
+    font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+    min-height:100vh;
+  }
+  .table{
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 22px 60px;
+  }
+  header{
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+  }
+  h1{
+    font-size: 2.15rem;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: 0.2px;
+    color: var(--ivory);
+  }
+  .subtitle{
+    font-size: 1.02rem;
+    color: var(--ivory-dim);
+    max-width: 62ch;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .rule-card{
+    margin-top: 18px;
+    border: 1px solid var(--brass-dim);
+    background: rgba(201,162,75,0.07);
+    border-radius: 3px;
+    padding: 14px 18px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: var(--ivory);
+  }
+  .rule-card b{ color: var(--brass); font-weight: 700; }
+
+  section.controls{
+    display:flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px 26px;
+    margin: 26px 0 8px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.88rem;
+  }
+  .field{ display:flex; align-items:center; gap:8px; }
+  .field label{ color: var(--ivory-dim); }
+  input[type=range]{ accent-color: var(--brass); width: 130px; }
+  .buttons{ display:flex; gap: 8px; flex-wrap: wrap; }
+  button{
+    font-family: Georgia, serif;
+    font-size: 0.92rem;
+    background: var(--wood);
+    color: var(--ivory);
+    border: 1px solid var(--wood-dark);
+    padding: 7px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background var(--dur) ease, transform 120ms ease;
+  }
+  button:hover{ background:#6c4a2d; }
+  button:active{ transform: translateY(1px); }
+  button:disabled{ opacity:0.4; cursor:not-allowed; }
+  button:focus-visible, input:focus-visible{
+    outline: 2px solid var(--brass);
+    outline-offset: 2px;
+  }
+  button.primary{ background: var(--brass-dim); border-color: var(--brass); color:#20180a; font-weight:bold; }
+  button.primary:hover{ background: var(--brass); }
+  .counter{ color: var(--ivory-dim); margin-left:auto; }
+  .counter b{ color: var(--ivory); }
+
+  .status-line{
+    min-height: 1.4em;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.95rem;
+    color: var(--brass);
+    margin: 4px 0 18px;
+  }
+
+  .board-wrap{
+    background: linear-gradient(180deg, var(--felt-1), var(--felt-2));
+    border: 1px solid var(--wood-dark);
+    border-radius: 4px;
+    padding: 26px 20px 18px;
+    overflow-x: auto;
+  }
+  .board{
+    position: relative;
+    height: 74px;
+    margin: 0 auto;
+  }
+  .no-anim .disc{ transition: none !important; }
+  .slot-track{
+    position:absolute; top:0; left:0;
+    display:flex;
+  }
+  .slot{
+    position: relative;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .slot::after{
+    content:"";
+    position:absolute;
+    width: 68%; height: 68%;
+    border-radius: 50%;
+    border: 1px dashed rgba(239,231,211,0.15);
+  }
+  .disc{
+    position:absolute; top:0; left:0;
+    width: 100%; height: 100%;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform var(--dur) cubic-bezier(.4,.05,.2,1);
+    will-change: transform;
+  }
+  .disc-face{
+    width: 72%; height: 72%;
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.55), inset 0 2px 3px rgba(255,255,255,0.18), inset 0 -4px 6px rgba(0,0,0,0.35);
+  }
+  .disc.red .disc-face{ background: radial-gradient(circle at 35% 30%, var(--red-hi), var(--red-lo) 72%); }
+  .disc.black .disc-face{ background: radial-gradient(circle at 35% 30%, var(--black-hi), var(--black-lo) 72%); }
+  .disc.hop{ animation: hop var(--dur) ease; }
+  @keyframes hop{ 50%{ filter: brightness(1.15); } }
+
+  .indices{
+    position:relative;
+    display:flex;
+    margin-top: 6px;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--ivory-dim);
+  }
+  .indices span{ display:flex; align-items:center; justify-content:center; }
+
+  .brackets{ position:relative; margin-top: 10px; min-height: 10px; }
+  .bracket-row{
+    position: relative;
+    height: 22px;
+    margin-bottom: 4px;
+  }
+  .bracket-bar{
+    position:absolute;
+    top: 6px; height: 10px;
+    border-radius: 2px;
+    background: var(--brass-color, var(--brass));
+    opacity: 0.85;
+  }
+  .bracket-bar::before, .bracket-bar::after{
+    content:"";
+    position:absolute; top:-5px;
+    width:2px; height: 20px;
+    background: var(--brass-color, var(--brass));
+  }
+  .bracket-bar::before{ left:0; }
+  .bracket-bar::after{ right:0; }
+  .bracket-label{
+    position:absolute;
+    top: 20px;
+    left: 0;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.7rem;
+    color: var(--brass);
+    white-space: nowrap;
+  }
+
+  .panels{
+    display:grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 18px;
+    margin-top: 26px;
+  }
+  @media (max-width: 640px){
+    .panels{ grid-template-columns: 1fr; }
+  }
+  .panel{
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: rgba(0,0,0,0.18);
+    padding: 14px 16px;
+    min-height: 180px;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .panel h2{
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ivory);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 8px;
+  }
+  #stackList{
+    list-style: none;
+    margin:0; padding:0;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.86rem;
+  }
+  #stackList li{
+    padding: 6px 8px;
+    margin-bottom: 4px;
+    border-left: 3px solid var(--brass-dim);
+    background: rgba(201,162,75,0.06);
+    color: var(--ivory);
+  }
+  #stackList li:last-child{
+    border-left-color: var(--brass);
+    background: rgba(201,162,75,0.14);
+    color: var(--brass);
+  }
+  #stackList .empty, #logList .empty{ color: var(--ivory-dim); font-style: italic; }
+  #logList{
+    list-style: none;
+    margin:0; padding:0;
+    font-family: 'Courier New', Consolas, monospace;
+    font-size: 0.86rem;
+    line-height: 1.7;
+    color: var(--ivory-dim);
+  }
+  #logList li.current{ color: var(--ivory); }
+  #logList li::before{ content: "· "; color: var(--brass-dim); }
+
+  footer{
+    margin-top: 26px;
+    font-size: 0.8rem;
+    color: var(--ivory-dim);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="table">
+
+  <header>
+    <h1>Untangling the checkers</h1>
+    <p class="subtitle">
+      n red checkers sit to the left of n black checkers. The only move
+      allowed is swapping two neighbours. Watch a recursive strategy turn
+      the block of colours into an alternating row, one adjacent swap
+      at a time.
+    </p>
+    <div class="rule-card">
+      solve(offset, size):<br>
+      &nbsp;&nbsp;if size ≤ 1: return &nbsp;<span style="color:var(--ivory-dim)"># already alternating</span><br>
+      &nbsp;&nbsp;<b>slide the first black checker left</b> until it sits right after the leading red one<br>
+      &nbsp;&nbsp;solve(offset + 2, size − 1) &nbsp;<span style="color:var(--ivory-dim)"># same puzzle, one size smaller</span>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="field">
+      <label for="nRange">pairs (n)</label>
+      <input type="range" id="nRange" min="1" max="9" value="4">
+      <span id="nVal" style="color:var(--ivory); min-width:1.2em; display:inline-block;">4</span>
+    </div>
+    <div class="buttons">
+      <button id="stepBackBtn" title="Undo one event">◂ step back</button>
+      <button id="stepBtn">step ▸</button>
+      <button id="playBtn" class="primary">play</button>
+      <button id="resetBtn">reset</button>
+    </div>
+    <div class="field">
+      <label for="speedRange">speed</label>
+      <input type="range" id="speedRange" min="150" max="1400" value="650" step="50">
+    </div>
+    <div class="counter">swap <b id="swapCount">0</b> of <b id="swapTotal">0</b></div>
+  </section>
+
+  <p class="status-line" id="statusLine">Press play, or step through by hand.</p>
+
+  <div class="board-wrap">
+    <div class="board" id="board">
+      <div class="slot-track" id="slotTrack"></div>
+    </div>
+    <div class="indices" id="indices"></div>
+    <div class="brackets" id="brackets"></div>
+  </div>
+
+  <section class="panels">
+    <div class="panel">
+      <h2>Call stack</h2>
+      <ul id="stackList"></ul>
+    </div>
+    <div class="panel">
+      <h2>Log</h2>
+      <ol id="logList"></ol>
+    </div>
+  </section>
+
+  <footer>Positions are 0-indexed. A checker keeps its colour as it moves — only its position changes.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- build the recursion trace (mirrors the Python exactly) ----------
+  function buildTrace(n){
+    const arr = [];
+    for(let i=0;i<n;i++) arr.push(0);
+    for(let i=0;i<n;i++) arr.push(1);
+    const trace = [];
+    trace.push({type:'init', n});
+
+    function recurse(offset, size, depth){
+      trace.push({type:'call', offset, size, depth});
+      if(size <= 1){
+        trace.push({type:'base', offset, size, depth});
+        trace.push({type:'return', offset, size, depth});
+        return;
+      }
+      let blackPos = offset + size;
+      const targetPos = offset + 1;
+      while(blackPos > targetPos){
+        const i = blackPos - 1, j = blackPos;
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        trace.push({type:'swap', i, j, depth});
+        blackPos--;
+      }
+      recurse(offset+2, size-1, depth+1);
+      trace.push({type:'return', offset, size, depth});
+    }
+
+    recurse(0, n, 0);
+    const totalSwaps = trace.filter(e=>e.type==='swap').length;
+    trace.push({type:'done', totalSwaps});
+    return trace;
+  }
+
+  // ---------- log text for each event ----------
+  function describe(ev){
+    switch(ev.type){
+      case 'init':
+        return `Board set to ${ev.n} red checker${ev.n===1?'':'s'} followed by ${ev.n} black checker${ev.n===1?'':'s'}.`;
+      case 'call':
+        return `solve(offset=${ev.offset}, size=${ev.size}) — sub-board [${ev.offset}..${ev.offset+2*ev.size-1}] looks like ${ev.size} red then ${ev.size} black.`;
+      case 'base':
+        return `size=${ev.size} ≤ 1, so [${ev.offset}..${ev.offset+2*ev.size-1}] is already alternating. Nothing to do.`;
+      case 'swap':
+        return `swap positions ${ev.i} and ${ev.j}.`;
+      case 'return':
+        return `[${ev.offset}..${ev.offset+2*ev.size-1}] solved — return from solve(offset=${ev.offset}, size=${ev.size}).`;
+      case 'done':
+        return `Done — alternating in ${ev.totalSwaps} swaps (minimum possible, n(n−1)/2).`;
+    }
+    return '';
+  }
+
+  // ---------- state ----------
+  let n = 4;
+  let trace = buildTrace(n);
+  let applied = 0;       // number of events from `trace` currently applied
+  let playing = false;
+  let playTimer = null;
+  let CELL = 60;
+
+  const boardEl = document.getElementById('board');
+  const slotTrack = document.getElementById('slotTrack');
+  const indicesEl = document.getElementById('indices');
+  const bracketsEl = document.getElementById('brackets');
+  const stackListEl = document.getElementById('stackList');
+  const logListEl = document.getElementById('logList');
+  const statusLine = document.getElementById('statusLine');
+  const swapCountEl = document.getElementById('swapCount');
+  const swapTotalEl = document.getElementById('swapTotal');
+  const nRange = document.getElementById('nRange');
+  const nVal = document.getElementById('nVal');
+  const speedRange = document.getElementById('speedRange');
+  const stepBtn = document.getElementById('stepBtn');
+  const stepBackBtn = document.getElementById('stepBackBtn');
+  const playBtn = document.getElementById('playBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let discs = []; // DOM nodes, one per checker, fixed colour, index = original identity
+
+  function buildBoardDom(){
+    slotTrack.innerHTML = '';
+    indicesEl.innerHTML = '';
+    discs = [];
+    const total = 2*n;
+    const wrapWidth = boardEl.parentElement.clientWidth - 40;
+    CELL = Math.max(34, Math.min(64, Math.floor(wrapWidth / total)));
+    boardEl.style.width = (CELL*total) + 'px';
+    slotTrack.style.width = (CELL*total) + 'px';
+    indicesEl.style.width = (CELL*total) + 'px';
+
+    for(let i=0;i<total;i++){
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.style.width = CELL+'px';
+      slot.style.height = CELL+'px';
+      slotTrack.appendChild(slot);
+
+      const idx = document.createElement('span');
+      idx.style.width = CELL+'px';
+      idx.textContent = i;
+      indicesEl.appendChild(idx);
+
+      const disc = document.createElement('div');
+      disc.className = 'disc ' + (i < n ? 'red' : 'black');
+      disc.style.width = CELL+'px';
+      disc.style.height = CELL+'px';
+      const face = document.createElement('div');
+      face.className = 'disc-face';
+      disc.appendChild(face);
+      boardEl.appendChild(disc);
+      discs.push(disc);
+    }
+  }
+
+  // Replays trace[0..count-1] and returns {positionOf, stackArr}
+  // positionOf[slot] = identity index of the checker currently sitting there
+  function computeStateUpTo(count){
+    const positionOf = [];
+    for(let i=0;i<2*n;i++) positionOf.push(i);
+    const stackArr = [];
+    for(let k=0;k<count;k++){
+      const ev = trace[k];
+      if(ev.type === 'swap'){
+        const tmp = positionOf[ev.i];
+        positionOf[ev.i] = positionOf[ev.j];
+        positionOf[ev.j] = tmp;
+      } else if(ev.type === 'call'){
+        stackArr.push(ev);
+      } else if(ev.type === 'return'){
+        stackArr.pop();
+      }
+    }
+    return {positionOf, stackArr};
+  }
+
+  function renderBrackets(stackArr){
+    bracketsEl.innerHTML = '';
+    const palette = ['#c9a24b', '#d9b869', '#e6cc8e', '#efdead', '#f5e9c8'];
+    stackArr.forEach((ev, depth)=>{
+      const row = document.createElement('div');
+      row.className = 'bracket-row';
+      const bar = document.createElement('div');
+      bar.className = 'bracket-bar';
+      bar.style.setProperty('--brass-color', palette[Math.min(depth, palette.length-1)]);
+      bar.style.left = (ev.offset*CELL) + 'px';
+      bar.style.width = (2*ev.size*CELL) + 'px';
+      const label = document.createElement('div');
+      label.className = 'bracket-label';
+      label.style.left = (ev.offset*CELL) + 'px';
+      label.style.color = palette[Math.min(depth, palette.length-1)];
+      label.textContent = `offset ${ev.offset}, size ${ev.size}`;
+      row.appendChild(bar);
+      row.appendChild(label);
+      bracketsEl.appendChild(row);
+    });
+  }
+
+  function renderStack(stackArr){
+    stackListEl.innerHTML = '';
+    if(stackArr.length === 0){
+      stackListEl.innerHTML = '<li class="empty">— empty —</li>';
+      return;
+    }
+    for(let i=stackArr.length-1; i>=0; i--){
+      const ev = stackArr[i];
+      const li = document.createElement('li');
+      li.textContent = `solve(offset=${ev.offset}, size=${ev.size})`;
+      stackListEl.appendChild(li);
+    }
+  }
+
+  function renderLog(count){
+    logListEl.innerHTML = '';
+    if(count === 0){
+      logListEl.innerHTML = '<li class="empty">nothing yet</li>';
+      return;
+    }
+    for(let k=0;k<count;k++){
+      const li = document.createElement('li');
+      li.textContent = describe(trace[k]);
+      if(k === count-1) li.classList.add('current');
+      logListEl.appendChild(li);
+    }
+    logListEl.scrollTop = logListEl.scrollHeight;
+  }
+
+  function renderDiscs(positionOf, instant, hopIndices){
+    if(instant) boardEl.classList.add('no-anim');
+    positionOf.forEach((discIndex, slot)=>{
+      discs[discIndex].style.transform = `translateX(${slot*CELL}px)`;
+    });
+    if(instant){
+      void boardEl.offsetWidth; // force reflow
+      boardEl.classList.remove('no-anim');
+    }
+    discs.forEach(d=>d.classList.remove('hop'));
+    if(hopIndices){
+      hopIndices.forEach(idx=>{
+        discs[idx].classList.add('hop');
+      });
+    }
+  }
+
+  function updateCounters(stackArr){
+    let swapsSoFar = 0;
+    for(let k=0;k<applied;k++) if(trace[k].type==='swap') swapsSoFar++;
+    const totalSwaps = trace.filter(e=>e.type==='swap').length;
+    swapCountEl.textContent = swapsSoFar;
+    swapTotalEl.textContent = totalSwaps;
+    stepBackBtn.disabled = applied<=0;
+    stepBtn.disabled = applied>=trace.length;
+    playBtn.disabled = applied>=trace.length;
+  }
+
+  function render(newApplied, animateLast){
+    const state = computeStateUpTo(newApplied);
+    let hopIndices = null;
+    let instant = !animateLast;
+    if(animateLast && newApplied > 0){
+      const ev = trace[newApplied-1];
+      if(ev.type === 'swap'){
+        hopIndices = [state.positionOf[ev.i], state.positionOf[ev.j]];
+      } else {
+        instant = true; // non-swap events don't move discs
+      }
+    }
+    renderDiscs(state.positionOf, instant, hopIndices);
+    renderStack(state.stackArr);
+    renderBrackets(state.stackArr);
+    renderLog(newApplied);
+    applied = newApplied;
+    updateCounters(state.stackArr);
+    statusLine.textContent = newApplied>0 ? describe(trace[newApplied-1]) : 'Press play, or step through by hand.';
+    if(newApplied>=trace.length){
+      stopPlaying();
+    }
+  }
+
+  function stepForward(){
+    if(applied < trace.length) render(applied+1, true);
+  }
+  function stepBack(){
+    if(applied > 0) render(applied-1, false);
+  }
+  function resetAll(){
+    stopPlaying();
+    render(0, false);
+  }
+
+  function stopPlaying(){
+    playing = false;
+    clearTimeout(playTimer);
+    playBtn.textContent = 'play';
+  }
+  function startPlaying(){
+    if(applied>=trace.length) return;
+    playing = true;
+    playBtn.textContent = 'pause';
+    tick();
+  }
+  function tick(){
+    if(!playing) return;
+    if(applied>=trace.length){ stopPlaying(); return; }
+    stepForward();
+    playTimer = setTimeout(tick, Number(speedRange.value));
+  }
+
+  function rebuildForN(newN){
+    stopPlaying();
+    n = newN;
+    trace = buildTrace(n);
+    applied = 0;
+    buildBoardDom();
+    render(0, false);
+  }
+
+  // ---------- wire up controls ----------
+  nRange.addEventListener('input', ()=>{
+    nVal.textContent = nRange.value;
+    rebuildForN(Number(nRange.value));
+  });
+  stepBtn.addEventListener('click', ()=>{ stopPlaying(); stepForward(); });
+  stepBackBtn.addEventListener('click', ()=>{ stopPlaying(); stepBack(); });
+  resetBtn.addEventListener('click', resetAll);
+  playBtn.addEventListener('click', ()=>{
+    if(playing) stopPlaying(); else startPlaying();
+  });
+  window.addEventListener('resize', ()=>{
+    buildBoardDom();
+    render(applied, false);
+  });
+
+  // ---------- go ----------
+  buildBoardDom();
+  render(0, false);
+})();
+</script>
+</body>
+</html>
