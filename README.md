@@ -16,7 +16,6 @@ Given a row of `2n` checkers, with the leftmost `n` red (`0`) and the rightmost 
 ### Files
 - `assignment1/checker_swap.py` — recursive Python solution
 - `assignment1/animation.html` — animation page illustrating the recursive swap process
-- `assignment1/README.md` (optional, if you want a per-assignment doc)
 
 ### How to Run
 ```bash
