@@ -28,4 +28,25 @@ Full chat used to complete this assignment: [Claude conversation](https://claude
 
 ---
 
-## Assignment 2 — *(coming soon)*
+## Assignment 2 — Two-Stack Expression Evaluator
+
+### Problem
+Evaluate arithmetic expressions containing integers, decimals, basic operators (+, -, *, /), parentheses, and unary operators (+, -) using a two-stack algorithm (operand stack and operator stack). The program handles operator precedence, left-to-right associativity, and error checking without using eval().
+
+**Example (n = 3):**
+Input: (1+5)/6-2*3
+Target: -5.0
+
+### Files
+- `assignment1/shunting_yard.py` — two-stack Python evaluation solution
+- `assignment1/shunting_yard.html` — animation page illustrating the two-stack evaluation process
+
+### How to Run
+```bash
+python assignment2/evaluator.py
+  ```
+Open shunting_yard.html in a browser to view the step-by-step animation.
+
+---
+
+## Assignment 3 — 
