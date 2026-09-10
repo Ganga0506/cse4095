@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two-Stack Expression Evaluator</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#f5f7fb;color:#1f2937}
+main{max-width:1100px;margin:30px auto;padding:0 20px}
+h1{margin-bottom:6px}
+.controls,.panel{background:white;border:1px solid #d8dee9;border-radius:14px;padding:16px;margin-bottom:18px}
+input{width:100%;padding:12px;font-size:20px;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{padding:10px 14px;border:0;border-radius:9px;background:#3157d5;color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#e8ecf5;color:#1f2937}
+button:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.expression{display:flex;gap:4px;flex-wrap:wrap;font-family:monospace;font-size:24px;background:#f8faff;border:1px solid #d8dee9;border-radius:10px;padding:12px;min-height:44px}
+.token{padding:4px 6px;border-radius:6px}
+.token.current{background:#3157d5;color:white}
+.token.done{opacity:.4}
+.stacks{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.stackbox{border:1px solid #d8dee9;border-radius:10px;padding:12px}
+.stack{min-height:220px;border:2px solid #cbd5e1;border-top:0;padding:8px;display:flex;flex-direction:column-reverse;gap:6px}
+.item{padding:8px;text-align:center;border-radius:7px;font-family:monospace;font-weight:700}
+.num{background:#e8f7ef;color:#0b7a53}
+.op{background:#fff1e6;color:#a04b00}
+.status{margin-top:12px;padding:12px;border-radius:10px;background:#e9efff;min-height:44px}
+.operation{font-family:monospace;font-size:20px;background:#111827;color:white;padding:14px;border-radius:10px;min-height:90px}
+.result{font-size:40px;font-weight:800}
+ol{line-height:1.6}
+@media(max-width:800px){.grid,.stacks{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Two-Stack Expression Evaluator</h1>
+<p>Supports +, -, *, /, parentheses, and unary + / -.</p>
+
+<div class="controls">
+  <input id="expr" value="-2 - 1">
+  <div class="buttons">
+    <button id="load">Load Expression</button>
+    <button id="prev" class="secondary">← Previous</button>
+    <button id="next">Next Step →</button>
+    <button id="play" class="secondary">▶ Play</button>
+    <button id="reset" class="secondary">Reset</button>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h3>Expression</h3>
+    <div id="exprView" class="expression"></div>
+    <div id="status" class="status"></div>
+
+    <div class="stacks">
+      <div class="stackbox">
+        <h3>Numbers Stack</h3>
+        <div id="numbers" class="stack"></div>
+      </div>
+      <div class="stackbox">
+        <h3>Operators Stack</h3>
+        <div id="operators" class="stack"></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h3>Current Operation</h3>
+      <div id="operation" class="operation"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Result</h3>
+      <div id="result" class="result">Not finished</div>
+    </div>
+
+    <div class="panel">
+      <h3>Rules</h3>
+      <ol>
+        <li>Push numbers onto the numbers stack.</li>
+        <li>Push <code>(</code> onto the operators stack.</li>
+        <li>If <code>+</code> or <code>-</code> appears where an operand is expected, treat it as a unary operator.</li>
+        <li>Unary <code>+</code> and unary <code>-</code> have higher precedence than <code>*</code> and <code>/</code>.</li>
+        <li>Before pushing a binary operator, apply operators of higher or equal precedence.</li>
+        <li>For <code>)</code>, apply operators until the matching <code>(</code> is reached.</li>
+        <li>At the end, apply all remaining operators.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let tokens=[], states=[], index=0, timer=null;
+
+function precedence(op){
+  if(op==='+'||op==='-') return 1;
+  if(op==='*'||op==='/') return 2;
+  if(op==='u+'||op==='u-') return 3;
+  return 0;
+}
+function isUnary(op){ return op==='u+' || op==='u-'; }
+function shown(op){ return op==='u-' ? 'unary −' : op==='u+' ? 'unary +' : op; }
+
+function tokenize(s){
+  const out=[];
+  let i=0, expectOperand=true;
+
+  while(i<s.length){
+    const ch=s[i];
+    if(/\s/.test(ch)){ i++; continue; }
+
+    if(/\d|\./.test(ch)){
+      let start=i, dots=0;
+      while(i<s.length && /[\d.]/.test(s[i])){
+        if(s[i]==='.') dots++;
+        i++;
+      }
+      const text=s.slice(start,i);
+      if(dots>1 || text==='.') throw new Error('Invalid number: '+text);
+      out.push({type:'number', value:text, display:text});
+      expectOperand=false;
+      continue;
+    }
+
+    if(ch==='('){
+      out.push({type:'paren', value:'(', display:'('});
+      i++; expectOperand=true; continue;
+    }
+
+    if(ch===')'){
+      out.push({type:'paren', value:')', display:')'});
+      i++; expectOperand=false; continue;
+    }
+
+    if('+-*/'.includes(ch)){
+      if(expectOperand && (ch==='+' || ch==='-')){
+        out.push({type:'operator', value: ch==='-' ? 'u-' : 'u+', display:ch});
+      }else{
+        out.push({type:'operator', value:ch, display:ch});
+      }
+      i++;
+      expectOperand=true;
+      continue;
+    }
+
+    throw new Error('Invalid character: '+ch);
+  }
+  return out;
+}
+
+function format(n){
+  return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(10)));
+}
+
+function binary(a,op,b){
+  if(op==='+') return a+b;
+  if(op==='-') return a-b;
+  if(op==='*') return a*b;
+  if(op==='/'){
+    if(b===0) throw new Error('Division by zero');
+    return a/b;
+  }
+  throw new Error('Unknown operator');
+}
+
+function buildStates(tokens){
+  const nums=[], ops=[], S=[];
+
+  function snap(ti,msg,operation,finished=false){
+    S.push({
+      tokenIndex:ti,
+      numbers:[...nums],
+      operators:[...ops],
+      message:msg,
+      operation,
+      finished,
+      result:finished ? nums[0] : null
+    });
+  }
+
+  function applyTop(ti, reason){
+    if(!ops.length) throw new Error('Missing operator');
+    const op=ops.pop();
+
+    if(isUnary(op)){
+      if(nums.length<1) throw new Error('Missing operand for unary operator');
+      const a=nums.pop();
+      const value=op==='u-' ? -a : +a;
+      nums.push(value);
+      snap(ti,
+           `${reason} Apply ${shown(op)} to ${format(a)}.`,
+           `${op==='u-'?'-':'+'}${format(a)} = ${format(value)}`);
+      return;
+    }
+
+    if(nums.length<2) throw new Error('Missing operand');
+    const b=nums.pop();
+    const a=nums.pop();
+    const value=binary(a,op,b);
+    nums.push(value);
+    snap(ti,
+         `${reason} Apply ${format(a)} ${op} ${format(b)}.`,
+         `${format(a)} ${op} ${format(b)} = ${format(value)}`);
+  }
+
+  snap(-1,'Ready to scan from left to right.','No operation yet.');
+
+  for(let i=0;i<tokens.length;i++){
+    const t=tokens[i];
+
+    if(t.type==='number'){
+      nums.push(Number(t.value));
+      snap(i,`Read ${t.value}: push it onto the numbers stack.`,`push ${t.value}`);
+      continue;
+    }
+
+    if(t.value==='('){
+      ops.push('(');
+      snap(i,'Read "(": push it onto the operators stack.','push (');
+      continue;
+    }
+
+    if(t.value===')'){
+      snap(i,'Read ")": apply operators until "(".','process )');
+      let found=false;
+      while(ops.length){
+        if(ops[ops.length-1]==='('){
+          ops.pop();
+          found=true;
+          snap(i,'Pop the matching "(".','pop (');
+          if(ops.length && isUnary(ops[ops.length-1])){
+            applyTop(i,'The parenthesized value is complete.');
+          }
+          break;
+        }
+        applyTop(i,'Closing parenthesis:');
+      }
+      if(!found) throw new Error('Mismatched parenthesis');
+      continue;
+    }
+
+    if(isUnary(t.value)){
+      ops.push(t.value);
+      snap(i,
+           `Read ${t.display} as a unary operator because an operand is expected.`,
+           `push ${shown(t.value)}`);
+      continue;
+    }
+
+    snap(i,
+         `Read binary operator ${t.display}: compare precedence.`,
+         `consider ${t.display}`);
+
+    while(ops.length &&
+          ops[ops.length-1] !== '(' &&
+          precedence(ops[ops.length-1]) >= precedence(t.value)){
+      applyTop(i,`${shown(ops[ops.length-1])} has higher or equal precedence.`);
+    }
+
+    ops.push(t.value);
+    snap(i,`Push ${t.display} onto the operators stack.`,`push ${t.display}`);
+  }
+
+  snap(tokens.length,'End of input: apply all remaining operators.','end of input');
+
+  while(ops.length){
+    if(ops[ops.length-1]==='(') throw new Error('Mismatched parenthesis');
+    applyTop(tokens.length,'End of input:');
+  }
+
+  if(nums.length!==1) throw new Error('Invalid expression');
+
+  snap(tokens.length,'Evaluation complete.',`result = ${format(nums[0])}`,true);
+  return S;
+}
+
+function renderTokens(){
+  $('exprView').innerHTML='';
+  tokens.forEach((t,i)=>{
+    const span=document.createElement('span');
+    span.className='token';
+    span.dataset.index=i;
+    span.textContent=t.display;
+    $('exprView').appendChild(span);
+  });
+}
+
+function renderStack(el, values, kind){
+  el.innerHTML='';
+  values.forEach(v=>{
+    const d=document.createElement('div');
+    d.className='item '+(kind==='num'?'num':'op');
+    d.textContent=kind==='num' ? format(v) : shown(v);
+    el.appendChild(d);
+  });
+}
+
+function render(){
+  const s=states[index];
+  renderStack($('numbers'),s.numbers,'num');
+  renderStack($('operators'),s.operators,'op');
+
+  document.querySelectorAll('.token').forEach(el=>{
+    const i=Number(el.dataset.index);
+    el.classList.toggle('current',i===s.tokenIndex && i<tokens.length);
+    el.classList.toggle('done',i<s.tokenIndex);
+  });
+
+  $('status').textContent=s.message;
+  $('operation').textContent=s.operation;
+  $('result').textContent=s.finished ? format(s.result) : 'Not finished';
+
+  $('prev').disabled=index===0;
+  $('next').disabled=index===states.length-1;
+  $('play').disabled=index===states.length-1;
+}
+
+function stop(){
+  if(timer) clearTimeout(timer);
+  timer=null;
+  $('play').textContent='▶ Play';
+}
+
+function load(){
+  stop();
+  try{
+    tokens=tokenize($('expr').value);
+    if(!tokens.length) throw new Error('Please enter an expression');
+    states=buildStates(tokens);
+    index=0;
+    renderTokens();
+    render();
+  }catch(e){
+    $('exprView').textContent=$('expr').value;
+    $('numbers').innerHTML='';
+    $('operators').innerHTML='';
+    $('status').textContent='Error: '+e.message;
+    $('operation').textContent='Cannot evaluate expression.';
+    $('result').textContent='Invalid expression';
+  }
+}
+
+$('load').onclick=load;
+$('prev').onclick=()=>{stop(); if(index>0){index--;render();}};
+$('next').onclick=()=>{stop(); if(index<states.length-1){index++;render();}};
+$('reset').onclick=()=>{stop(); index=0; render();};
+$('play').onclick=()=>{
+  if(timer){ stop(); return; }
+  $('play').textContent='⏸ Pause';
+  const step=()=>{
+    if(index>=states.length-1){ stop(); return; }
+    index++; render();
+    timer=setTimeout(step,700);
+  };
+  step();
+};
+$('expr').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
+
+load();
+</script>
+</main>
+</body>
+</html>

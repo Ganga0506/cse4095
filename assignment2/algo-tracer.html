@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two-Stack Evaluator — Algorithm Tracer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0D1117;
+    --panel: #161B22;
+    --panel-raised: #1C232C;
+    --border: #30363D;
+    --text: #E6EDF3;
+    --text-dim: #7D8590;
+    --num-accent: #58A6FF;
+    --num-accent-dim: rgba(88,166,255,0.14);
+    --op-accent: #F0883E;
+    --op-accent-dim: rgba(240,136,62,0.14);
+    --good: #3FB950;
+    --bad: #F85149;
+    --focus: #E3B341;
+    --mono: 'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+  }
+
+  body{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  button:focus-visible, input:focus-visible{
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding: 18px 24px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    flex-shrink:0;
+  }
+
+  .title-row{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    margin-bottom: 14px;
+  }
+
+  .title-row .prompt{
+    color: var(--good);
+    font-family: var(--mono);
+    font-size: 1.1rem;
+  }
+
+  h1{
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin:0;
+    letter-spacing: 0.01em;
+  }
+
+  .subtitle{
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    margin-left: 4px;
+  }
+
+  .expr-row{
+    display:flex;
+    gap:10px;
+  }
+
+  #expr-input{
+    flex:1;
+    background: var(--panel-raised);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 11px 14px;
+    border-radius: 6px;
+  }
+  #expr-input::placeholder{ color: var(--text-dim); }
+
+  .btn{
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel-raised);
+    color: var(--text);
+    padding: 0 18px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.08s ease;
+  }
+  .btn:hover{ background:#232B36; border-color:#414A56; }
+  .btn:active{ transform: scale(0.97); }
+  .btn:disabled{ opacity: 0.35; cursor: not-allowed; }
+  .btn:disabled:hover{ background: var(--panel-raised); border-color: var(--border); }
+
+  .btn-primary{
+    background: var(--num-accent);
+    border-color: var(--num-accent);
+    color: #04101E;
+  }
+  .btn-primary:hover{ background:#71b4ff; border-color:#71b4ff; }
+
+  #load-btn{ min-width: 90px; }
+
+  .error-banner{
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 0.83rem;
+    color: var(--bad);
+    display:none;
+  }
+  .error-banner.show{ display:block; }
+
+  /* ---------- Token tape ---------- */
+  .tape-wrap{
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink:0;
+    overflow-x:auto;
+  }
+  .tape-label{
+    font-size: 0.7rem;
+    text-transform: none;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .tape{
+    display:flex;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 1.05rem;
+    min-height: 40px;
+    align-items:center;
+  }
+  .tape .ch{
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: var(--text-dim);
+    min-width: 12px;
+    text-align:center;
+    white-space:pre;
+    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .tape .ch.active{
+    background: var(--focus);
+    color: #241C04;
+    box-shadow: 0 0 0 2px rgba(227,179,65,0.35);
+  }
+  .tape .ch.done{ color: var(--text); }
+
+  /* ---------- Main grid ---------- */
+  main{
+    flex:1;
+    display:grid;
+    grid-template-columns: 1fr 1fr 1.3fr;
+    gap: 1px;
+    background: var(--border);
+    overflow:hidden;
+    min-height: 0;
+  }
+
+  .panel{
+    background: var(--panel);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  .panel-head{
+    padding: 12px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-shrink:0;
+  }
+  .panel-head .name{
+    font-weight:600;
+    font-size: 0.88rem;
+  }
+  .panel-head .count{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+  }
+
+  .stack-col .panel-head .name{ color: var(--num-accent); }
+  .stack-col.ops .panel-head .name{ color: var(--op-accent); }
+
+  .stack-body{
+    flex:1;
+    display:flex;
+    flex-direction:column-reverse; /* stack grows upward visually */
+    align-items:center;
+    gap: 8px;
+    padding: 16px;
+    overflow-y:auto;
+  }
+
+  .stack-floor{
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    border-top: 1px dashed var(--border);
+    width: 100%;
+    text-align:center;
+    padding-top: 6px;
+    order: 999;
+  }
+
+  .stack-item{
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 10px 0;
+    width: 82%;
+    max-width: 180px;
+    text-align:center;
+    border-radius: 6px;
+    background: var(--num-accent-dim);
+    border: 1px solid rgba(88,166,255,0.4);
+    color: var(--text);
+    animation: pushIn 0.22s ease-out;
+  }
+  .stack-col.ops .stack-item{
+    background: var(--op-accent-dim);
+    border-color: rgba(240,136,62,0.45);
+  }
+  .stack-item.top{
+    box-shadow: 0 0 0 2px var(--num-accent);
+  }
+  .stack-col.ops .stack-item.top{
+    box-shadow: 0 0 0 2px var(--op-accent);
+  }
+  .stack-item.popping{
+    animation: popOut 0.28s ease-in forwards;
+  }
+
+  @keyframes pushIn{
+    from{ transform: translateY(14px); opacity:0; }
+    to{ transform: translateY(0); opacity:1; }
+  }
+  @keyframes popOut{
+    from{ transform: translateY(0) scale(1); opacity:1; }
+    to{ transform: translateY(-10px) scale(0.85); opacity:0; }
+  }
+
+  .empty-hint{
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    margin: auto 0;
+  }
+
+  /* ---------- Right info panel ---------- */
+  .info-panel{
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+
+  .current-op{
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink:0;
+  }
+  .current-op .label{
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .current-op .detail{
+    font-family: var(--mono);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--focus);
+    min-height: 2.7em;
+  }
+
+  .log{
+    flex:1;
+    overflow-y:auto;
+    padding: 10px 18px 18px;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.9;
+  }
+  .log-entry{
+    color: var(--text-dim);
+    border-left: 2px solid transparent;
+    padding-left: 10px;
+    margin-left: -12px;
+  }
+  .log-entry.current{
+    color: var(--text);
+    border-left-color: var(--focus);
+    background: rgba(227,179,65,0.06);
+  }
+  .log-entry .step-no{
+    color: #4d5560;
+    margin-right: 8px;
+  }
+  .log-entry.current .step-no{ color: var(--focus); }
+
+  /* ---------- Transport bar ---------- */
+  footer{
+    flex-shrink:0;
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 12px 24px;
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+
+  .transport-btn{
+    width: 42px; height: 38px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0;
+    font-size: 1rem;
+  }
+
+  #play-btn{ width: 56px; }
+
+  .progress-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap: 12px;
+  }
+
+  #progress-bar{
+    flex:1;
+    -webkit-appearance:none;
+    appearance:none;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline:none;
+  }
+  #progress-bar::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width: 14px; height:14px;
+    border-radius:50%;
+    background: var(--focus);
+    cursor:pointer;
+    margin-top:-5px;
+  }
+  #progress-bar::-moz-range-thumb{
+    width: 14px; height:14px; border:none;
+    border-radius:50%;
+    background: var(--focus);
+    cursor:pointer;
+  }
+  #progress-bar::-webkit-slider-runnable-track{
+    height:4px; border-radius:2px; background: var(--border);
+  }
+
+  #step-counter{
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    min-width: 80px;
+    text-align:right;
+  }
+
+  .speed-select{
+    font-family: var(--sans);
+    font-size: 0.8rem;
+    background: var(--panel-raised);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  @media (max-width: 900px){
+    main{ grid-template-columns: 1fr; grid-auto-rows: minmax(160px, auto); overflow-y:auto; }
+    .stack-body{ min-height: 160px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-row">
+    <span class="prompt">&gt;_</span>
+    <h1>Two-Stack Evaluator</h1>
+    <span class="subtitle">Shunting-Yard algorithm, traced step by step</span>
+  </div>
+  <div class="expr-row">
+    <input id="expr-input" type="text" value="2*-(3+4)" placeholder="Type an expression, e.g. 3 + -4.5 * (2 - 1)" autocomplete="off" spellcheck="false">
+    <button id="load-btn" class="btn btn-primary">Load</button>
+  </div>
+  <div id="error-banner" class="error-banner"></div>
+</header>
+
+<div class="tape-wrap">
+  <div class="tape-label">Expression tape — current token highlighted</div>
+  <div id="tape" class="tape"></div>
+</div>
+
+<main>
+  <section class="panel stack-col nums">
+    <div class="panel-head">
+      <span class="name">Numbers Stack</span>
+      <span class="count" id="nums-count">0 items</span>
+    </div>
+    <div class="stack-body" id="nums-body">
+      <div class="stack-floor">floor</div>
+      <span class="empty-hint">empty</span>
+    </div>
+  </section>
+
+  <section class="panel stack-col ops">
+    <div class="panel-head">
+      <span class="name">Operators Stack</span>
+      <span class="count" id="ops-count">0 items</span>
+    </div>
+    <div class="stack-body" id="ops-body">
+      <div class="stack-floor">floor</div>
+      <span class="empty-hint">empty</span>
+    </div>
+  </section>
+
+  <section class="panel info-panel">
+    <div class="current-op">
+      <div class="label">Current operation</div>
+      <div class="detail" id="current-detail">Load an expression to begin.</div>
+    </div>
+    <div class="log" id="log"></div>
+  </section>
+</main>
+
+<footer>
+  <button id="reset-btn" class="btn transport-btn" title="Reset">⟲</button>
+  <button id="prev-btn" class="btn transport-btn" title="Previous step">◀</button>
+  <button id="play-btn" class="btn btn-primary transport-btn" title="Play/Pause">▶</button>
+  <button id="next-btn" class="btn transport-btn" title="Next step">▶|</button>
+
+  <div class="progress-wrap">
+    <input id="progress-bar" type="range" min="0" max="0" value="0" step="1">
+    <span id="step-counter">0 / 0</span>
+  </div>
+
+  <select id="speed-select" class="speed-select" title="Playback speed">
+    <option value="1400">0.5×</option>
+    <option value="800" selected>1×</option>
+    <option value="450">2×</option>
+    <option value="220">4×</option>
+  </select>
+</footer>
+
+<script>
+/* =========================================================================
+   CORE ALGORITHM
+   Same logic as the reference Python implementation: tokenize -> generate
+   a flat list of discrete "steps", one per atomic stack mutation, so the
+   UI just plays back a precomputed trace rather than re-deriving state.
+   ========================================================================= */
+
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  const n = expr.length;
+
+  function prevAllowsUnary() {
+    if (tokens.length === 0) return true;
+    const last = tokens[tokens.length - 1];
+    if (last.type === 'LPAREN') return true;
+    if (last.type === 'OP' || last.type === 'UOP') return true;
+    return false;
+  }
+
+  while (i < n) {
+    const ch = expr[i];
+
+    if (/\s/.test(ch)) { i++; continue; }
+
+    if (/[0-9.]/.test(ch)) {
+      const start = i;
+      let dotCount = 0;
+      while (i < n && /[0-9.]/.test(expr[i])) {
+        if (expr[i] === '.') {
+          dotCount++;
+          if (dotCount > 1) {
+            throw new Error(`Invalid number '${expr.slice(start, i + 1)}': multiple decimal points at position ${i}.`);
+          }
+        }
+        i++;
+      }
+      const numStr = expr.slice(start, i);
+      if (numStr === '.') {
+        throw new Error(`Invalid number '.' at position ${start}: a decimal point must have digits around it.`);
+      }
+      tokens.push({ type: 'NUMBER', value: parseFloat(numStr), start, end: i });
+      continue;
+    }
+
+    if (ch === '+' || ch === '-') {
+      const type = prevAllowsUnary() ? 'UOP' : 'OP';
+      tokens.push({ type, value: ch, start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+
+    if (ch === '*' || ch === '/') {
+      if (prevAllowsUnary()) {
+        throw new Error(`Unexpected operator '${ch}' at position ${i}: '*' and '/' cannot be used as unary operators.`);
+      }
+      tokens.push({ type: 'OP', value: ch, start: i, end: i + 1 });
+      i++;
+      continue;
+    }
+
+    if (ch === '(') { tokens.push({ type: 'LPAREN', value: '(', start: i, end: i + 1 }); i++; continue; }
+    if (ch === ')') { tokens.push({ type: 'RPAREN', value: ')', start: i, end: i + 1 }); i++; continue; }
+
+    throw new Error(`Invalid character '${ch}' at position ${i}.`);
+  }
+
+  return tokens;
+}
+
+function precedence(tok) {
+  if (tok.type === 'UOP') return 3;
+  if (tok.value === '*' || tok.value === '/') return 2;
+  return 1;
+}
+function isRightAssoc(tok) { return tok.type === 'UOP'; }
+function fmtNum(x) { return String(x); }
+function opLabel(tok) {
+  if (tok.type === 'LPAREN') return '(';
+  if (tok.type === 'UOP') return (tok.value === '-' ? 'u-' : 'u+');
+  return tok.value;
+}
+
+function applyOperator(numbers, operators) {
+  const top = operators.pop();
+  if (top.type === 'UOP') {
+    if (numbers.length < 1) throw new Error(`Malformed expression: unary '${top.value}' has no operand to act on.`);
+    const a = numbers.pop();
+    const result = top.value === '-' ? -a : a;
+    numbers.push(result);
+    return `Apply unary ${top.value}  →  ${top.value}${fmtNum(a)} = ${fmtNum(result)}`;
+  }
+  if (numbers.length < 2) throw new Error(`Malformed expression: operator '${top.value}' is missing an operand.`);
+  const b = numbers.pop();
+  const a = numbers.pop();
+  let result;
+  if (top.value === '+') result = a + b;
+  else if (top.value === '-') result = a - b;
+  else if (top.value === '*') result = a * b;
+  else if (top.value === '/') {
+    if (b === 0) throw new Error('Division by zero.');
+    result = a / b;
+  }
+  numbers.push(result);
+  return `Apply  ${fmtNum(a)} ${top.value} ${fmtNum(b)}  →  ${fmtNum(result)}`;
+}
+
+function generateSteps(expression) {
+  const tokens = tokenize(expression);
+  if (tokens.length === 0) throw new Error('Empty expression.');
+
+  const numbers = [];
+  const operators = [];
+  const steps = [];
+
+  function snapshot(tokenIdx, action, detail) {
+    steps.push({
+      tokenIdx,
+      charStart: tokenIdx != null ? tokens[tokenIdx].start : null,
+      charEnd: tokenIdx != null ? tokens[tokenIdx].end : null,
+      action,
+      detail,
+      numbers: numbers.slice(),
+      operators: operators.map(opLabel),
+    });
+  }
+
+  snapshot(null, 'start', `Tokenized into ${tokens.length} token${tokens.length === 1 ? '' : 's'}. Ready to begin.`);
+
+  tokens.forEach((token, idx) => {
+    if (token.type === 'NUMBER') {
+      numbers.push(token.value);
+      snapshot(idx, 'push-number', `Push number ${fmtNum(token.value)} onto the Numbers stack.`);
+    } else if (token.type === 'LPAREN') {
+      operators.push(token);
+      snapshot(idx, 'push-paren', `Push '(' onto the Operators stack as a barrier.`);
+    } else if (token.type === 'RPAREN') {
+      let matched = false;
+      while (operators.length) {
+        if (operators[operators.length - 1].type === 'LPAREN') {
+          operators.pop();
+          matched = true;
+          snapshot(idx, 'pop-paren', `Found the matching '(' — discard it.`);
+          break;
+        }
+        const desc = applyOperator(numbers, operators);
+        snapshot(idx, 'apply', desc);
+      }
+      if (!matched) throw new Error("Mismatched parentheses: unexpected ')'.");
+    } else {
+      while (operators.length && operators[operators.length - 1].type !== 'LPAREN') {
+        const top = operators[operators.length - 1];
+        const shouldPop = isRightAssoc(token)
+          ? precedence(top) > precedence(token)
+          : precedence(top) >= precedence(token);
+        if (!shouldPop) break;
+        const desc = applyOperator(numbers, operators);
+        snapshot(idx, 'apply', desc);
+      }
+      operators.push(token);
+      snapshot(idx, 'push-op', `Push operator '${opLabel(token)}' onto the Operators stack.`);
+    }
+  });
+
+  while (operators.length) {
+    if (operators[operators.length - 1].type === 'LPAREN') {
+      throw new Error("Mismatched parentheses: unclosed '('.");
+    }
+    const desc = applyOperator(numbers, operators);
+    snapshot(null, 'apply', `(draining remaining operators) ${desc}`);
+  }
+
+  if (numbers.length !== 1) {
+    throw new Error('Malformed expression: could not reduce to a single value.');
+  }
+
+  snapshot(null, 'done', `Done — result = ${fmtNum(numbers[0])}`);
+  return { tokens, steps, result: numbers[0] };
+}
+
+/* =========================================================================
+   UI / PLAYBACK
+   ========================================================================= */
+
+const el = {
+  input: document.getElementById('expr-input'),
+  loadBtn: document.getElementById('load-btn'),
+  errorBanner: document.getElementById('error-banner'),
+  tape: document.getElementById('tape'),
+  numsBody: document.getElementById('nums-body'),
+  opsBody: document.getElementById('ops-body'),
+  numsCount: document.getElementById('nums-count'),
+  opsCount: document.getElementById('ops-count'),
+  currentDetail: document.getElementById('current-detail'),
+  log: document.getElementById('log'),
+  resetBtn: document.getElementById('reset-btn'),
+  prevBtn: document.getElementById('prev-btn'),
+  playBtn: document.getElementById('play-btn'),
+  nextBtn: document.getElementById('next-btn'),
+  progressBar: document.getElementById('progress-bar'),
+  stepCounter: document.getElementById('step-counter'),
+  speedSelect: document.getElementById('speed-select'),
+};
+
+let state = {
+  expression: '',
+  tokens: [],
+  steps: [],
+  result: null,
+  current: -1,      // index into steps, -1 = nothing loaded / before first step
+  playing: false,
+  timer: null,
+};
+
+function setControlsEnabled(enabled) {
+  [el.prevBtn, el.nextBtn, el.playBtn, el.resetBtn, el.progressBar].forEach(b => b.disabled = !enabled);
+}
+
+function showError(msg) {
+  el.errorBanner.textContent = 'Error: ' + msg;
+  el.errorBanner.classList.add('show');
+}
+function clearError() {
+  el.errorBanner.textContent = '';
+  el.errorBanner.classList.remove('show');
+}
+
+function loadExpression() {
+  pause();
+  clearError();
+  const expr = el.input.value;
+
+  let parsed;
+  try {
+    parsed = generateSteps(expr);
+  } catch (e) {
+    showError(e.message);
+    state = { expression: expr, tokens: [], steps: [], result: null, current: -1, playing: false, timer: null };
+    renderTape('');
+    renderStacks([], []);
+    el.currentDetail.textContent = 'Fix the error above, then press Load again.';
+    el.log.innerHTML = '';
+    updateTransport();
+    setControlsEnabled(false);
+    return;
+  }
+
+  state.expression = expr;
+  state.tokens = parsed.tokens;
+  state.steps = parsed.steps;
+  state.result = parsed.result;
+  state.current = 0;
+
+  renderTape(expr);
+  buildLog();
+  setControlsEnabled(true);
+  el.progressBar.max = state.steps.length - 1;
+  renderStep();
+}
+
+function renderTape(expr) {
+  el.tape.innerHTML = '';
+  if (!expr) return;
+  [...expr].forEach((ch, i) => {
+    const span = document.createElement('span');
+    span.className = 'ch';
+    span.textContent = ch === ' ' ? '\u00A0' : ch;
+    span.dataset.idx = i;
+    el.tape.appendChild(span);
+  });
+}
+
+function buildLog() {
+  el.log.innerHTML = '';
+  state.steps.forEach((step, i) => {
+    const div = document.createElement('div');
+    div.className = 'log-entry';
+    div.id = 'log-entry-' + i;
+    const stepNo = document.createElement('span');
+    stepNo.className = 'step-no';
+    stepNo.textContent = String(i).padStart(2, '0');
+    div.appendChild(stepNo);
+    div.appendChild(document.createTextNode(step.detail));
+    el.log.appendChild(div);
+  });
+}
+
+function renderStacks(numbers, operators, poppingSide) {
+  renderStackColumn(el.numsBody, el.numsCount, numbers, 'num');
+  renderStackColumn(el.opsBody, el.opsCount, operators, 'op');
+}
+
+function renderStackColumn(bodyEl, countEl, items, kind) {
+  const floor = bodyEl.querySelector('.stack-floor');
+  bodyEl.innerHTML = '';
+  bodyEl.appendChild(floor);
+  countEl.textContent = items.length + (items.length === 1 ? ' item' : ' items');
+
+  if (items.length === 0) {
+    const hint = document.createElement('span');
+    hint.className = 'empty-hint';
+    hint.textContent = 'empty';
+    bodyEl.appendChild(hint);
+    return;
+  }
+  items.forEach((val, i) => {
+    const item = document.createElement('div');
+    item.className = 'stack-item' + (i === items.length - 1 ? ' top' : '');
+    item.textContent = kind === 'num' ? fmtNum(val) : val;
+    bodyEl.appendChild(item);
+  });
+}
+
+function renderStep() {
+  if (state.current < 0 || state.steps.length === 0) return;
+  const step = state.steps[state.current];
+
+  // Tape highlighting
+  const chars = el.tape.querySelectorAll('.ch');
+  chars.forEach((c, i) => {
+    c.classList.remove('active', 'done');
+    if (step.charStart != null && i >= step.charStart && i < step.charEnd) {
+      c.classList.add('active');
+    } else if (step.charStart != null && i < step.charStart) {
+      c.classList.add('done');
+    } else if (step.charStart == null && state.current === state.steps.length - 1) {
+      c.classList.add('done');
+    }
+  });
+  if (step.charStart != null) {
+    const activeEl = el.tape.querySelector('.ch.active');
+    if (activeEl) activeEl.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
+
+  renderStacks(step.numbers, step.operators);
+  el.currentDetail.textContent = step.detail;
+
+  // Log highlighting
+  document.querySelectorAll('.log-entry.current').forEach(n => n.classList.remove('current'));
+  const activeLog = document.getElementById('log-entry-' + state.current);
+  if (activeLog) {
+    activeLog.classList.add('current');
+    activeLog.scrollIntoView({ block: 'nearest' });
+  }
+
+  updateTransport();
+}
+
+function updateTransport() {
+  const total = state.steps.length;
+  el.stepCounter.textContent = total ? `${state.current + 1} / ${total}` : '0 / 0';
+  el.progressBar.value = Math.max(state.current, 0);
+  el.prevBtn.disabled = total === 0 || state.current <= 0;
+  el.nextBtn.disabled = total === 0 || state.current >= total - 1;
+  el.playBtn.textContent = state.playing ? '❚❚' : '▶';
+  if (total === 0 || state.current >= total - 1) {
+    pause();
+  }
+}
+
+function stepForward() {
+  if (state.current < state.steps.length - 1) {
+    state.current++;
+    renderStep();
+  } else {
+    pause();
+  }
+}
+function stepBackward() {
+  if (state.current > 0) {
+    state.current--;
+    renderStep();
+  }
+}
+function resetPlayback() {
+  pause();
+  if (state.steps.length) {
+    state.current = 0;
+    renderStep();
+  }
+}
+
+function play() {
+  if (state.steps.length === 0) return;
+  if (state.current >= state.steps.length - 1) state.current = 0; // restart if at end
+  state.playing = true;
+  updateTransport();
+  const speed = parseInt(el.speedSelect.value, 10);
+  state.timer = setInterval(() => {
+    if (state.current >= state.steps.length - 1) {
+      pause();
+      return;
+    }
+    stepForward();
+  }, speed);
+}
+function pause() {
+  state.playing = false;
+  if (state.timer) { clearInterval(state.timer); state.timer = null; }
+  updateTransport();
+}
+function togglePlay() {
+  if (state.playing) pause(); else play();
+}
+
+el.loadBtn.addEventListener('click', loadExpression);
+el.input.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadExpression(); });
+el.prevBtn.addEventListener('click', () => { pause(); stepBackward(); });
+el.nextBtn.addEventListener('click', () => { pause(); stepForward(); });
+el.playBtn.addEventListener('click', togglePlay);
+el.resetBtn.addEventListener('click', resetPlayback);
+el.progressBar.addEventListener('input', () => {
+  pause();
+  state.current = parseInt(el.progressBar.value, 10);
+  renderStep();
+});
+el.speedSelect.addEventListener('change', () => {
+  if (state.playing) { pause(); play(); }
+});
+
+// Keyboard shortcuts: space = play/pause, arrows = step
+document.addEventListener('keydown', (e) => {
+  if (document.activeElement === el.input) return;
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  else if (e.code === 'ArrowRight') { pause(); stepForward(); }
+  else if (e.code === 'ArrowLeft') { pause(); stepBackward(); }
+});
+
+setControlsEnabled(false);
+loadExpression(); // load the default example on first paint
+</script>
+</body>
+</html>
