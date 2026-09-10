@@ -39,11 +39,11 @@ Target: -5.0
 
 ### Files
 - `assignment1/shunting_yard.py` — two-stack Python evaluation solution
-- `assignment1/shunting_yard.html` — animation page illustrating the two-stack evaluation process
+- `assignment1/algo-tracer.html` — animation page illustrating the two-stack evaluation process
 
 ### How to Run
 ```bash
-python assignment2/evaluator.py
+python assignment2/shunting_yard.py
   ```
 Open shunting_yard.html in a browser to view the step-by-step animation.
 
