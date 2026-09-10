@@ -832,9 +832,6 @@ function updateTransport() {
   el.prevBtn.disabled = total === 0 || state.current <= 0;
   el.nextBtn.disabled = total === 0 || state.current >= total - 1;
   el.playBtn.textContent = state.playing ? '❚❚' : '▶';
-  if (total === 0 || state.current >= total - 1) {
-    pause();
-  }
 }
 
 function stepForward() {
