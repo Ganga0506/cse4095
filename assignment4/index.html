@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Card Game 24</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --felt:        #16311f;
+  --felt-mid:    #1e3d28;
+  --felt-light:  #254d33;
+  --gold:        #c9a84c;
+  --gold-light:  #e0c06a;
+  --card-bg:     #fefefe;
+  --card-shadow: rgba(0,0,0,.45);
+  --red:         #c0392b;
+  --black:       #1a1a1a;
+  --correct:     #2ecc71;
+  --wrong:       #e74c3c;
+  --ui-text:     #d4e8da;
+  --ui-muted:    #8aab94;
+  --radius-card: 10px;
+  --radius-btn:  8px;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--felt);
+  background-image:
+    radial-gradient(ellipse at 50% 0%, var(--felt-light) 0%, var(--felt) 60%),
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 12px,
+      rgba(255,255,255,.012) 12px,
+      rgba(255,255,255,.012) 24px
+    );
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--ui-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 1rem 3rem;
+  gap: 0;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+header h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(2rem, 6vw, 3rem);
+  color: var(--gold);
+  letter-spacing: .02em;
+  line-height: 1.1;
+  text-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+
+header p {
+  margin-top: .5rem;
+  font-size: .9rem;
+  color: var(--ui-muted);
+  letter-spacing: .01em;
+}
+
+/* ── Score bar ────────────────────────────────────────────── */
+#score-bar {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  font-size: .8rem;
+  color: var(--ui-muted);
+}
+
+#score-bar span strong {
+  color: var(--gold);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* ── Card table ───────────────────────────────────────────── */
+#card-table {
+  display: flex;
+  gap: clamp(.75rem, 3vw, 1.25rem);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  min-height: 160px;
+  align-items: center;
+}
+
+/* ── Individual card ──────────────────────────────────────── */
+.card {
+  width: clamp(90px, 18vw, 118px);
+  aspect-ratio: 5 / 7;
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 6px 20px var(--card-shadow),
+    0 1px 0 rgba(255,255,255,.08) inset;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: clamp(.45rem, 1.5vw, .65rem);
+  position: relative;
+  cursor: default;
+  transform: translateY(0) rotate(0deg);
+  transition: transform .2s ease, box-shadow .2s ease;
+  /* deal animation */
+  animation: deal .35s ease backwards;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 14px 32px var(--card-shadow), 0 1px 0 rgba(255,255,255,.1) inset;
+}
+
+@keyframes deal {
+  from { opacity: 0; transform: translateY(-24px) scale(.92) rotate(-4deg); }
+  to   { opacity: 1; transform: translateY(0)     scale(1)   rotate(0deg);  }
+}
+
+/* stagger the deal */
+.card:nth-child(1) { animation-delay: .05s; }
+.card:nth-child(2) { animation-delay: .15s; }
+.card:nth-child(3) { animation-delay: .25s; }
+.card:nth-child(4) { animation-delay: .35s; }
+
+.card.red  { color: var(--red); }
+.card.black { color: var(--black); }
+
+/* top-left corner pip */
+.card-corner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+}
+
+.card-corner .rank {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  font-weight: 700;
+}
+
+.card-corner .suit {
+  font-size: clamp(.75rem, 2.5vw, 1rem);
+}
+
+/* centre suit */
+.card-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-center .suit-big {
+  font-size: clamp(2rem, 7vw, 2.8rem);
+  line-height: 1;
+  opacity: .85;
+}
+
+/* bottom-right corner pip (rotated 180°) */
+.card-corner.bottom {
+  align-items: flex-end;
+  transform: rotate(180deg);
+  align-self: end;
+}
+
+/* value badge */
+.card-value {
+  position: absolute;
+  bottom: .35rem;
+  right: .5rem;
+  font-size: .65rem;
+  font-weight: 600;
+  color: #888;
+  font-family: 'Inter', sans-serif;
+}
+
+.card.red  .card-value { color: #c9a0a0; }
+.card.black .card-value { color: #aaa; }
+
+/* ── Controls ─────────────────────────────────────────────── */
+#controls {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+#expr-row {
+  display: flex;
+  gap: .6rem;
+}
+
+#expr-input {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border: 1.5px solid rgba(255,255,255,.15);
+  border-radius: var(--radius-btn);
+  color: #fff;
+  font-family: 'Inter', monospace;
+  font-size: 1.05rem;
+  padding: .7rem 1rem;
+  outline: none;
+  transition: border-color .2s, background .2s;
+  caret-color: var(--gold);
+}
+
+#expr-input::placeholder { color: rgba(255,255,255,.28); }
+
+#expr-input:focus {
+  border-color: var(--gold);
+  background: rgba(255,255,255,.1);
+}
+
+#expr-input.shake {
+  animation: shake .35s ease;
+}
+
+@keyframes shake {
+  0%,100%{ transform: translateX(0); }
+  20%    { transform: translateX(-6px); }
+  40%    { transform: translateX(6px); }
+  60%    { transform: translateX(-4px); }
+  80%    { transform: translateX(4px); }
+}
+
+#check-btn {
+  background: var(--gold);
+  color: #1a1a1a;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: .95rem;
+  padding: .7rem 1.2rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s, transform .1s;
+}
+
+#check-btn:hover  { background: var(--gold-light); }
+#check-btn:active { transform: scale(.97); }
+
+/* secondary button row */
+#btn-row {
+  display: flex;
+  gap: .6rem;
+}
+
+.sec-btn {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border: 1.5px solid rgba(255,255,255,.14);
+  border-radius: var(--radius-btn);
+  color: var(--ui-text);
+  font-family: 'Inter', sans-serif;
+  font-size: .875rem;
+  font-weight: 500;
+  padding: .6rem .8rem;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+
+.sec-btn:hover  { background: rgba(255,255,255,.13); border-color: rgba(255,255,255,.28); }
+.sec-btn:active { transform: scale(.97); }
+
+/* ── Feedback ─────────────────────────────────────────────── */
+#feedback {
+  width: 100%;
+  max-width: 480px;
+  min-height: 3.5rem;
+  margin-top: 1.25rem;
+  border-radius: 10px;
+  padding: .9rem 1.1rem;
+  font-size: .925rem;
+  line-height: 1.5;
+  text-align: center;
+  transition: opacity .2s;
+  opacity: 0;
+}
+
+#feedback.visible { opacity: 1; }
+
+#feedback.success {
+  background: rgba(46,204,113,.15);
+  border: 1.5px solid rgba(46,204,113,.35);
+  color: #5fe89e;
+}
+
+#feedback.error {
+  background: rgba(231,76,60,.13);
+  border: 1.5px solid rgba(231,76,60,.3);
+  color: #f0837a;
+}
+
+#feedback.info {
+  background: rgba(201,168,76,.12);
+  border: 1.5px solid rgba(201,168,76,.3);
+  color: var(--gold-light);
+}
+
+/* ── No-solution banner ───────────────────────────────────── */
+#unsolvable-banner {
+  display: none;
+  margin-top: 1rem;
+  font-size: .8rem;
+  color: var(--ui-muted);
+  text-align: center;
+}
+
+/* ── Keyboard hint ────────────────────────────────────────── */
+#kb-hint {
+  margin-top: 2rem;
+  font-size: .75rem;
+  color: rgba(255,255,255,.22);
+  text-align: center;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 400px) {
+  #score-bar { gap: 1.2rem; }
+  #btn-row { flex-wrap: wrap; }
+  .sec-btn { flex: 1 1 calc(50% - .3rem); }
+}
+
+/* ── Reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .card       { animation: none; }
+  #expr-input { animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Card Game 24</h1>
+  <p>Combine your four cards with + − × ÷ to make 24.</p>
+</header>
+
+<div id="score-bar">
+  <span>Solved <strong id="stat-solved">0</strong></span>
+  <span>Played <strong id="stat-played">0</strong></span>
+  <span>Hints  <strong id="stat-hints">0</strong></span>
+</div>
+
+<div id="card-table"></div>
+
+<div id="controls">
+  <div id="expr-row">
+    <input id="expr-input" type="text" inputmode="decimal"
+           placeholder="e.g. (8 / (3 − 8 / 3))" autocomplete="off" spellcheck="false">
+    <button id="check-btn">Check</button>
+  </div>
+  <div id="btn-row">
+    <button class="sec-btn" id="hint-btn">Hint</button>
+    <button class="sec-btn" id="solution-btn">Solution</button>
+    <button class="sec-btn" id="new-btn">New Game</button>
+  </div>
+</div>
+
+<div id="feedback" role="status" aria-live="polite"></div>
+<div id="unsolvable-banner">⚠ This hand has no solution — try a new game.</div>
+<p id="kb-hint">Press Enter to check · Escape to clear</p>
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   Card Game 24 — single-file JS engine
+   All logic ported directly from card24.py.
+   No external dependencies.
+═══════════════════════════════════════════════════════════ */
+
+// ── Data ────────────────────────────────────────────────────
+const RANK_VALUES = {
+  A:1, '2':2, '3':3, '4':4, '5':5, '6':6, '7':7,
+  '8':8, '9':9, '10':10, J:11, Q:12, K:13
+};
+const RANKS  = Object.keys(RANK_VALUES);
+const SUITS  = ['♠','♥','♦','♣'];
+const RED_SUITS = new Set(['♥','♦']);
+const TARGET = 24;
+
+// ── State ────────────────────────────────────────────────────
+let hand = [];          // current 4 Card objects
+let stats = { solved: 0, played: 0, hints: 0 };
+let _solutionCache = null;
+
+class Card {
+  constructor(rank, suit) {
+    this.rank  = rank;
+    this.suit  = suit;
+    this.value = RANK_VALUES[rank];
+    this.red   = RED_SUITS.has(suit);
+  }
+}
+
+// ── Card generation ──────────────────────────────────────────
+function shuffle(arr) {
+  // Fisher-Yates
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function generateHand() {
+  const deck = [];
+  for (const r of RANKS) for (const s of SUITS) deck.push(new Card(r, s));
+  return shuffle(deck).slice(0, 4);
+}
+
+// ── DOM: render cards ────────────────────────────────────────
+function renderHand(cards) {
+  const table = document.getElementById('card-table');
+  table.innerHTML = '';
+  cards.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'card ' + (c.red ? 'red' : 'black');
+    div.innerHTML = `
+      <div class="card-corner top">
+        <span class="rank">${c.rank}</span>
+        <span class="suit">${c.suit}</span>
+      </div>
+      <div class="card-center">
+        <span class="suit-big">${c.suit}</span>
+      </div>
+      <div class="card-corner bottom">
+        <span class="rank">${c.rank}</span>
+        <span class="suit">${c.suit}</span>
+      </div>
+      <span class="card-value">${c.rank === String(c.value) ? '' : '= ' + c.value}</span>
+    `;
+    table.appendChild(div);
+  });
+}
+
+// ── Feedback ─────────────────────────────────────────────────
+function showFeedback(msg, type /* 'success'|'error'|'info' */) {
+  const el = document.getElementById('feedback');
+  el.textContent   = msg;
+  el.className     = 'visible ' + type;
+}
+
+function clearFeedback() {
+  const el = document.getElementById('feedback');
+  el.className  = '';
+  el.textContent = '';
+}
+
+// ── Safe AST-style evaluator ──────────────────────────────────
+// We can't replicate Python's ast module in vanilla JS, so we implement a
+// hand-rolled recursive-descent parser — same algorithm described in Part 1.
+// Returns a number, or throws on bad input.
+
+class ParseError extends Error {}
+
+function tokenize(expr) {
+  const tokens = [];
+  let i = 0;
+  while (i < expr.length) {
+    const ch = expr[i];
+    if (' \t'.includes(ch)) { i++; continue; }
+    if (/\d/.test(ch)) {
+      let num = '';
+      while (i < expr.length && /\d/.test(expr[i])) num += expr[i++];
+      tokens.push({ type: 'NUM', value: parseInt(num, 10) });
+    } else if ('+-*/()'.includes(ch)) {
+      tokens.push({ type: ch });
+      i++;
+    } else {
+      throw new ParseError(`Disallowed character: "${ch}"`);
+    }
+  }
+  tokens.push({ type: 'EOF' });
+  return tokens;
+}
+
+function makeParser(tokens) {
+  let pos = 0;
+  const peek = () => tokens[pos];
+  const consume = () => tokens[pos++];
+
+  function parseExpr() {
+    let left = parseTerm();
+    while (peek().type === '+' || peek().type === '-') {
+      const op = consume().type;
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm() {
+    let left = parseFactor();
+    while (peek().type === '*' || peek().type === '/') {
+      const op = consume().type;
+      const right = parseFactor();
+      if (op === '/') {
+        if (right === 0) throw new ParseError('Division by zero');
+        left = left / right;
+      } else {
+        left = left * right;
+      }
+    }
+    return left;
+  }
+
+  function parseFactor() {
+    const tok = peek();
+    if (tok.type === '(') {
+      consume();                   // '('
+      const val = parseExpr();
+      if (peek().type !== ')') throw new ParseError('Missing closing parenthesis');
+      consume();                   // ')'
+      return val;
+    }
+    if (tok.type === '-') {        // unary minus
+      consume();
+      return -parseFactor();
+    }
+    if (tok.type === 'NUM') {
+      consume();
+      return tok.value;
+    }
+    if (tok.type === 'EOF') throw new ParseError('Unexpected end of expression');
+    throw new ParseError(`Unexpected token: "${tok.type}"`);
+  }
+
+  return { parseExpr };
+}
+
+function safeEval(expr) {
+  const tokens = tokenize(expr.trim());
+  const parser = makeParser(tokens);
+  const result = parser.parseExpr();
+  if (tokens[/* pos already advanced inside closure — re-check via slice */
+      tokens.findIndex(t => t.type === 'EOF') - 0] &&
+      /* simpler: just recheck */ false) {}
+  return result;
+}
+
+// ── Number extraction ─────────────────────────────────────────
+function extractNumbers(expr) {
+  const nums = [];
+  const tokens = tokenize(expr);
+  for (const t of tokens) {
+    if (t.type === 'NUM') nums.push(t.value);
+  }
+  return nums;
+}
+
+// ── Validate expression ───────────────────────────────────────
+function validateExpression(cards, expr) {
+  if (!expr.trim()) return { ok: false, msg: 'Enter an expression first.' };
+
+  // allowed chars
+  if (/[^0-9+\-*/() \t]/.test(expr)) {
+    const bad = [...new Set(expr.replace(/[0-9+\-*/() \t]/g,'').split(''))].join(' ');
+    return { ok: false, msg: `Disallowed character(s): ${bad}` };
+  }
+
+  let usedNums;
+  try { usedNums = extractNumbers(expr); }
+  catch(e) { return { ok: false, msg: e.message }; }
+
+  const cardVals = cards.map(c => c.value).sort((a,b)=>a-b);
+  const usedSorted = [...usedNums].sort((a,b)=>a-b);
+  if (JSON.stringify(usedSorted) !== JSON.stringify(cardVals)) {
+    return {
+      ok: false,
+      msg: `Wrong numbers. Cards: [${cardVals.join(', ')}]. You used: [${usedSorted.join(', ')}]. Each card value must appear exactly once.`
+    };
+  }
+
+  let result;
+  try { result = safeEval(expr); }
+  catch(e) { return { ok: false, msg: e.message }; }
+
+  if (Math.abs(result - TARGET) < 1e-6) {
+    return { ok: true, msg: `${expr} = ${TARGET} ✓` };
+  }
+  return { ok: false, msg: `That equals ${+result.toFixed(6)}, not 24. Try again.` };
+}
+
+// ── Solver (5-shape exhaustive search, using Fraction arithmetic) ──────────
+// JS has no built-in Fraction type, so we represent exact rationals as
+// [numerator, denominator] pairs and keep them fully reduced.
+
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while(b){[a,b]=[b,a%b];} return a||1; }
+
+function frac(n, d=1) {
+  if (d === 0) return null;          // signals division by zero
+  if (d < 0) { n=-n; d=-d; }
+  const g = gcd(Math.abs(n), d);
+  return [n/g, d/g];
+}
+
+function fadd(a,b)  { return frac(a[0]*b[1]+b[0]*a[1], a[1]*b[1]); }
+function fsub(a,b)  { return frac(a[0]*b[1]-b[0]*a[1], a[1]*b[1]); }
+function fmul(a,b)  { return frac(a[0]*b[0], a[1]*b[1]); }
+function fdiv(a,b)  { return b[0]===0 ? null : frac(a[0]*b[1], a[1]*b[0]); }
+function feq(a,b)   { return a[0]===b[0] && a[1]===b[1]; }
+
+const APPLY = { '+':fadd, '-':fsub, '*':fmul, '/':fdiv };
+const OPS   = ['+','-','*','/'];
+const PREC  = { '+':1, '-':1, '*':2, '/':2 };
+
+function combine(L, op, R) {
+  const val = APPLY[op](L.val, R.val);
+  if (val === null) return null;
+
+  const lp = PREC[op];
+  const leftText  = (L.op && PREC[L.op] < lp) ? `(${L.text})` : L.text;
+  const rightPrec = R.op ? PREC[R.op] : 99;
+  const needsParens = rightPrec < lp || (rightPrec === lp && (op==='-'||op==='/'));
+  const rightText = needsParens ? `(${R.text})` : R.text;
+
+  return { val, text: `${leftText} ${op} ${rightText}`, op };
+}
+
+function buildShape(shape, ns, ops) {
+  const [a,b,c,d] = ns;
+  const [o1,o2,o3] = ops;
+  let t, l, r;
+  switch(shape) {
+    case 0: t=combine(a,o1,b); if(!t)return null; t=combine(t,o2,c); if(!t)return null; return combine(t,o3,d);
+    case 1: t=combine(c,o3,d); if(!t)return null; t=combine(b,o2,t); if(!t)return null; return combine(a,o1,t);
+    case 2: l=combine(a,o1,b); r=combine(c,o3,d); if(!l||!r)return null; return combine(l,o2,r);
+    case 3: t=combine(b,o2,c); if(!t)return null; t=combine(a,o1,t); if(!t)return null; return combine(t,o3,d);
+    case 4: t=combine(b,o2,c); if(!t)return null; t=combine(t,o3,d); if(!t)return null; return combine(a,o1,t);
+  }
+}
+
+function permutations(arr) {
+  if (arr.length <= 1) return [arr];
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0,i), ...arr.slice(i+1)];
+    for (const p of permutations(rest)) result.push([arr[i], ...p]);
+  }
+  return result;
+}
+
+function findSolution(cards) {
+  const TARGET_FRAC = frac(TARGET);
+  const values = cards.map(c => frac(c.value));
+  const seen   = new Set();
+
+  for (const perm of permutations(values)) {
+    const leaves = perm.map(v => ({
+      val: v,
+      text: String(v[0] / v[1] | 0),   // all card values are integers
+      op: null
+    }));
+
+    for (const o1 of OPS) for (const o2 of OPS) for (const o3 of OPS) {
+      for (let shape = 0; shape < 5; shape++) {
+        const expr = buildShape(shape, leaves, [o1,o2,o3]);
+        if (!expr) continue;
+        if (feq(expr.val, TARGET_FRAC) && !seen.has(expr.text)) {
+          seen.add(expr.text);
+          return `${expr.text} = ${TARGET}`;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// ── Hint: mask numbers ────────────────────────────────────────
+function partialHint(solution) {
+  const exprPart = solution.split(' = ')[0];
+  return exprPart.replace(/\d+/g, '_') + ` = ${TARGET}`;
+}
+
+// ── Game actions ──────────────────────────────────────────────
+function newGame() {
+  hand = generateHand();
+  _solutionCache = undefined;   // reset lazy cache
+  renderHand(hand);
+  clearFeedback();
+  document.getElementById('expr-input').value = '';
+  document.getElementById('expr-input').focus();
+  document.getElementById('unsolvable-banner').style.display = 'none';
+  stats.played++;
+  updateStats();
+
+  // Warn if unsolvable (compute in background after a short delay)
+  setTimeout(() => {
+    if (getSolution() === null) {
+      document.getElementById('unsolvable-banner').style.display = 'block';
+    }
+  }, 600);
+}
+
+function getSolution() {
+  if (_solutionCache === undefined) _solutionCache = findSolution(hand);
+  return _solutionCache;
+}
+
+function checkAnswer() {
+  const expr = document.getElementById('expr-input').value;
+  const { ok, msg } = validateExpression(hand, expr);
+  if (ok) {
+    showFeedback('🎉 ' + msg, 'success');
+    stats.solved++;
+    updateStats();
+    confetti();   // light celebration
+  } else {
+    showFeedback(msg, 'error');
+    const inp = document.getElementById('expr-input');
+    inp.classList.remove('shake');
+    void inp.offsetWidth;   // reflow to restart animation
+    inp.classList.add('shake');
+  }
+}
+
+function showHint() {
+  const sol = getSolution();
+  if (!sol) {
+    showFeedback('No solution exists for this hand.', 'info');
+    return;
+  }
+  stats.hints++;
+  updateStats();
+  showFeedback('Hint: ' + partialHint(sol), 'info');
+}
+
+function showSolution() {
+  const sol = getSolution();
+  if (!sol) {
+    showFeedback('No solution exists for this hand.', 'info');
+    return;
+  }
+  showFeedback('Solution: ' + sol, 'info');
+}
+
+function updateStats() {
+  document.getElementById('stat-solved').textContent = stats.solved;
+  document.getElementById('stat-played').textContent = stats.played;
+  document.getElementById('stat-hints').textContent  = stats.hints;
+}
+
+// ── Confetti (micro, no deps) ─────────────────────────────────
+function confetti() {
+  const colors = ['#c9a84c','#2ecc71','#e74c3c','#3498db','#f1c40f','#fff'];
+  for (let i = 0; i < 36; i++) {
+    const el = document.createElement('div');
+    const size = Math.random() * 8 + 5;
+    Object.assign(el.style, {
+      position: 'fixed',
+      left: Math.random() * 100 + 'vw',
+      top: '-10px',
+      width: size + 'px',
+      height: size + 'px',
+      background: colors[Math.floor(Math.random()*colors.length)],
+      borderRadius: Math.random() > .5 ? '50%' : '2px',
+      opacity: 1,
+      pointerEvents: 'none',
+      zIndex: 9999,
+      transition: `transform ${.8+Math.random()*.8}s ease-in, opacity ${.6+Math.random()*.4}s ease-in ${.4+Math.random()*.3}s`,
+    });
+    document.body.appendChild(el);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const drift = (Math.random()-0.5)*200;
+        el.style.transform = `translate(${drift}px, ${window.innerHeight + 20}px) rotate(${Math.random()*360}deg)`;
+        el.style.opacity = '0';
+      });
+    });
+    setTimeout(() => el.remove(), 2000);
+  }
+}
+
+// ── Event bindings ────────────────────────────────────────────
+document.getElementById('check-btn')   .addEventListener('click', checkAnswer);
+document.getElementById('hint-btn')    .addEventListener('click', showHint);
+document.getElementById('solution-btn').addEventListener('click', showSolution);
+document.getElementById('new-btn')     .addEventListener('click', newGame);
+
+document.getElementById('expr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter')  { e.preventDefault(); checkAnswer(); }
+  if (e.key === 'Escape') { document.getElementById('expr-input').value = ''; clearFeedback(); }
+});
+
+// ── Boot ──────────────────────────────────────────────────────
+newGame();
+</script>
+</body>
+</html>

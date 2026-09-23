@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>8-Puzzle BFS Visualizer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --tile: #f8fafc;
+      --tile-text: #0f172a;
+      --accent: #22c55e;
+      --accent-2: #16a34a;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --danger: #ef4444;
+      --border: rgba(255,255,255,0.10);
+      --shadow: 0 20px 45px rgba(0,0,0,0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(34,197,94,0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(59,130,246,0.10), transparent 28%),
+        var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 18px;
+    }
+
+    .app {
+      width: min(1100px, 100%);
+    }
+
+    .header {
+      margin-bottom: 24px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: -0.04em;
+    }
+
+    .header p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.6;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+      gap: 22px;
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.92);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+      backdrop-filter: blur(10px);
+    }
+
+    .board-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0 18px;
+    }
+
+    .board {
+      width: min(430px, 92vw);
+      aspect-ratio: 1;
+      padding: 10px;
+      border-radius: 24px;
+      background: #020617;
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tile {
+      position: absolute;
+      border-radius: 18px;
+      background: linear-gradient(145deg, #ffffff, #e2e8f0);
+      color: var(--tile-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(2rem, 7vw, 4rem);
+      font-weight: 800;
+      box-shadow: inset 0 -4px 0 rgba(15,23,42,0.08), 0 8px 18px rgba(0,0,0,0.18);
+      transition: left 220ms ease, top 220ms ease, transform 220ms ease, opacity 220ms ease, background 220ms ease;
+      user-select: none;
+    }
+
+    .tile.moved {
+      background: linear-gradient(145deg, #bbf7d0, #86efac);
+      transform: scale(0.96);
+    }
+
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: #334155;
+      transition: transform 120ms ease, background 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: #475569;
+    }
+
+    button.primary {
+      background: var(--accent-2);
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent);
+      color: #052e16;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .speed-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+      color: var(--muted);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      color: #f8fafc;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .input-grid input {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: white;
+      border-radius: 10px;
+      padding: 11px 6px;
+      text-align: center;
+      font: inherit;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .input-grid input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.12);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .message {
+      min-height: 24px;
+      margin-top: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .message.error {
+      color: #fca5a5;
+    }
+
+    .message.success {
+      color: #86efac;
+    }
+
+    .goal-note {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 8px 0 0;
+    }
+
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .input-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <h1>8-Puzzle BFS Visualizer</h1>
+      <p>
+        Solve the classic 8-puzzle with Breadth-First Search. The solver uses a FIFO queue,
+        marks states discovered when they are enqueued, and reconstructs the optimal path with parent pointers.
+      </p>
+    </header>
+
+    <section class="layout">
+      <div class="card">
+        <div class="board-wrap">
+          <div id="board" class="board" aria-label="8-puzzle board"></div>
+        </div>
+
+        <div class="controls">
+          <button id="solveBtn" class="primary">Solve</button>
+          <button id="playBtn" disabled>Play</button>
+          <button id="prevBtn" disabled>Previous</button>
+          <button id="nextBtn" disabled>Next</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+
+        <div class="speed-row">
+          <span>Slow</span>
+          <input id="speedSlider" type="range" min="150" max="1500" step="50" value="650" />
+          <span>Fast</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Solution Information</h2>
+
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-label">Current Step</span>
+            <span id="stepValue" class="stat-value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Tile Moved</span>
+            <span id="movedValue" class="stat-value">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Optimal Moves</span>
+            <span id="movesValue" class="stat-value">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">States Expanded</span>
+            <span id="expandedValue" class="stat-value">0</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">States Discovered</span>
+            <span id="discoveredValue" class="stat-value">1</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Status</span>
+            <span id="statusValue" class="stat-value">Ready</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h2 class="section-title">Custom Initial State</h2>
+        <form id="stateForm">
+          <div id="inputGrid" class="input-grid"></div>
+          <div class="form-actions">
+            <button type="submit" class="primary">Load & Solve</button>
+            <button type="button" id="defaultBtn">Use Default</button>
+          </div>
+        </form>
+        <p class="goal-note">
+          Enter each number from 0 through 8 exactly once. The goal is always
+          <strong>(1, 2, 3, 4, 5, 6, 7, 8, 0)</strong>.
+        </p>
+        <div id="message" class="message"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const DEFAULT_STATE = [8, 7, 6, 5, 4, 3, 2, 1, 0];
+    const GOAL_STATE = [1, 2, 3, 4, 5, 6, 7, 8, 0];
+
+    const board = document.getElementById("board");
+    const solveBtn = document.getElementById("solveBtn");
+    const playBtn = document.getElementById("playBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const defaultBtn = document.getElementById("defaultBtn");
+    const speedSlider = document.getElementById("speedSlider");
+    const stateForm = document.getElementById("stateForm");
+    const inputGrid = document.getElementById("inputGrid");
+    const message = document.getElementById("message");
+
+    const stepValue = document.getElementById("stepValue");
+    const movedValue = document.getElementById("movedValue");
+    const movesValue = document.getElementById("movesValue");
+    const expandedValue = document.getElementById("expandedValue");
+    const discoveredValue = document.getElementById("discoveredValue");
+    const statusValue = document.getElementById("statusValue");
+
+    let initialState = [...DEFAULT_STATE];
+    let solutionPath = [[...initialState]];
+    let currentStep = 0;
+    let playTimer = null;
+    let searchStats = {
+      statesExpanded: 0,
+      statesDiscovered: 1
+    };
+
+    function stateKey(state) {
+      return state.join(",");
+    }
+
+    function getNeighbors(state) {
+      const neighbors = [];
+      const blank = state.indexOf(0);
+      const row = Math.floor(blank / 3);
+      const col = blank % 3;
+
+      const moves = [
+        [-1, 0], // up
+        [1, 0],  // down
+        [0, -1], // left
+        [0, 1]   // right
+      ];
+
+      for (const [rowChange, colChange] of moves) {
+        const newRow = row + rowChange;
+        const newCol = col + colChange;
+
+        if (newRow >= 0 && newRow < 3 && newCol >= 0 && newCol < 3) {
+          const newBlank = newRow * 3 + newCol;
+          const newState = [...state];
+
+          [newState[blank], newState[newBlank]] = [
+            newState[newBlank],
+            newState[blank]
+          ];
+
+          neighbors.push(newState);
+        }
+      }
+
+      return neighbors;
+    }
+
+    function reconstructPath(parent, statesByKey, goalKey) {
+      const path = [];
+      let currentKey = goalKey;
+
+      while (currentKey !== null) {
+        path.push(statesByKey.get(currentKey));
+        currentKey = parent.get(currentKey);
+      }
+
+      path.reverse();
+      return path;
+    }
+
+    function bfs(initial, goal) {
+      const queue = [initial];
+      let queueHead = 0;
+
+      const initialKey = stateKey(initial);
+      const goalKey = stateKey(goal);
+
+      const discovered = new Set([initialKey]);
+      const parent = new Map([[initialKey, null]]);
+      const statesByKey = new Map([[initialKey, initial]]);
+
+      let statesExpanded = 0;
+      let statesDiscovered = 1;
+
+      while (queueHead < queue.length) {
+        const current = queue[queueHead++];
+        const currentKey = stateKey(current);
+        statesExpanded += 1;
+
+        if (currentKey === goalKey) {
+          return {
+            path: reconstructPath(parent, statesByKey, goalKey),
+            statesExpanded,
+            statesDiscovered
+          };
+        }
+
+        for (const neighbor of getNeighbors(current)) {
+          const neighborKey = stateKey(neighbor);
+
+          if (!discovered.has(neighborKey)) {
+            discovered.add(neighborKey);
+            statesDiscovered += 1;
+
+            parent.set(neighborKey, currentKey);
+            statesByKey.set(neighborKey, neighbor);
+            queue.push(neighbor);
+          }
+        }
+      }
+
+      return {
+        path: null,
+        statesExpanded,
+        statesDiscovered
+      };
+    }
+
+    function ensureTileElements() {
+      if (board.children.length > 0) return;
+
+      for (let value = 1; value <= 8; value++) {
+        const tile = document.createElement("div");
+        tile.className = "tile";
+        tile.dataset.value = value;
+        tile.textContent = value;
+        board.appendChild(tile);
+      }
+    }
+
+    function renderBoard(state, movedTile = null) {
+      ensureTileElements();
+
+      const gap = 10;
+      const padding = 10;
+      const tileSize = (board.clientWidth - (padding * 2) - (gap * 2)) / 3;
+
+      for (const tile of board.children) {
+        const value = Number(tile.dataset.value);
+        const index = state.indexOf(value);
+        const row = Math.floor(index / 3);
+        const col = index % 3;
+
+        tile.style.width = `${tileSize}px`;
+        tile.style.height = `${tileSize}px`;
+        tile.style.left = `${padding + col * (tileSize + gap)}px`;
+        tile.style.top = `${padding + row * (tileSize + gap)}px`;
+        tile.classList.toggle("moved", value === movedTile);
+      }
+
+      board.setAttribute("aria-label", `8-puzzle board: ${state.join(", ")}`);
+    }
+
+    function getMovedTile(previousState, currentState) {
+      if (!previousState || !currentState) return null;
+
+      const oldBlank = previousState.indexOf(0);
+      const newBlank = currentState.indexOf(0);
+
+      return previousState[newBlank] || currentState[oldBlank] || null;
+    }
+
+    function updateView() {
+      const state = solutionPath[currentStep];
+      const previousState = currentStep > 0 ? solutionPath[currentStep - 1] : null;
+      const movedTile = getMovedTile(previousState, state);
+
+      renderBoard(state, movedTile);
+
+      stepValue.textContent = currentStep;
+      movedValue.textContent = movedTile ?? "—";
+      movesValue.textContent = solutionPath.length > 1 ? solutionPath.length - 1 : "—";
+      expandedValue.textContent = searchStats.statesExpanded;
+      discoveredValue.textContent = searchStats.statesDiscovered;
+
+      prevBtn.disabled = currentStep === 0;
+      nextBtn.disabled = solutionPath.length <= 1 || currentStep >= solutionPath.length - 1;
+      playBtn.disabled = solutionPath.length <= 1;
+
+      if (currentStep >= solutionPath.length - 1 && solutionPath.length > 1) {
+        stopPlayback();
+      }
+    }
+
+    function solveCurrentState() {
+      stopPlayback();
+      statusValue.textContent = "Solving...";
+      message.textContent = "";
+      message.className = "message";
+
+      const result = bfs(initialState, GOAL_STATE);
+      searchStats = {
+        statesExpanded: result.statesExpanded,
+        statesDiscovered: result.statesDiscovered
+      };
+
+      if (!result.path) {
+        solutionPath = [[...initialState]];
+        currentStep = 0;
+        statusValue.textContent = "Unsolvable";
+        message.textContent = "This configuration cannot reach the goal state.";
+        message.className = "message error";
+        updateView();
+        movesValue.textContent = "—";
+        return;
+      }
+
+      solutionPath = result.path;
+      currentStep = 0;
+      statusValue.textContent = "Solved";
+      message.textContent = `Optimal solution found in ${solutionPath.length - 1} moves.`;
+      message.className = "message success";
+      updateView();
+    }
+
+    function nextStep() {
+      if (currentStep < solutionPath.length - 1) {
+        currentStep += 1;
+        updateView();
+      }
+    }
+
+    function previousStep() {
+      if (currentStep > 0) {
+        currentStep -= 1;
+        updateView();
+      }
+    }
+
+    function getPlaybackDelay() {
+      const min = Number(speedSlider.min);
+      const max = Number(speedSlider.max);
+      const value = Number(speedSlider.value);
+      return max + min - value;
+    }
+
+    function startPlayback() {
+      if (solutionPath.length <= 1) return;
+
+      if (currentStep >= solutionPath.length - 1) {
+        currentStep = 0;
+        updateView();
+      }
+
+      playBtn.textContent = "Pause";
+
+      playTimer = setInterval(() => {
+        if (currentStep >= solutionPath.length - 1) {
+          stopPlayback();
+          return;
+        }
+        nextStep();
+      }, getPlaybackDelay());
+    }
+
+    function stopPlayback() {
+      if (playTimer !== null) {
+        clearInterval(playTimer);
+        playTimer = null;
+      }
+      playBtn.textContent = "Play";
+    }
+
+    function togglePlayback() {
+      if (playTimer === null) {
+        startPlayback();
+      } else {
+        stopPlayback();
+      }
+    }
+
+    function resetPuzzle() {
+      stopPlayback();
+      initialState = [...DEFAULT_STATE];
+      solutionPath = [[...initialState]];
+      currentStep = 0;
+      searchStats = { statesExpanded: 0, statesDiscovered: 1 };
+      statusValue.textContent = "Ready";
+      movesValue.textContent = "—";
+      message.textContent = "";
+      message.className = "message";
+      fillInputs(initialState);
+      updateView();
+      movesValue.textContent = "—";
+    }
+
+    function isValidState(values) {
+      if (values.length !== 9) return false;
+      if (values.some(value => !Number.isInteger(value))) return false;
+
+      const sorted = [...values].sort((a, b) => a - b);
+      return sorted.every((value, index) => value === index);
+    }
+
+    function readCustomState() {
+      const inputs = [...inputGrid.querySelectorAll("input")];
+      return inputs.map(input => Number(input.value.trim()));
+    }
+
+    function fillInputs(state) {
+      const inputs = [...inputGrid.querySelectorAll("input")];
+      inputs.forEach((input, index) => {
+        input.value = state[index];
+      });
+    }
+
+    function buildInputGrid() {
+      inputGrid.innerHTML = "";
+
+      DEFAULT_STATE.forEach((value, index) => {
+        const input = document.createElement("input");
+        input.type = "number";
+        input.min = "0";
+        input.max = "8";
+        input.step = "1";
+        input.value = value;
+        input.setAttribute("aria-label", `Puzzle position ${index + 1}`);
+        inputGrid.appendChild(input);
+      });
+    }
+
+    solveBtn.addEventListener("click", solveCurrentState);
+    playBtn.addEventListener("click", togglePlayback);
+    prevBtn.addEventListener("click", previousStep);
+    nextBtn.addEventListener("click", nextStep);
+    resetBtn.addEventListener("click", resetPuzzle);
+
+    defaultBtn.addEventListener("click", () => {
+      fillInputs(DEFAULT_STATE);
+      initialState = [...DEFAULT_STATE];
+      solutionPath = [[...initialState]];
+      currentStep = 0;
+      searchStats = { statesExpanded: 0, statesDiscovered: 1 };
+      statusValue.textContent = "Ready";
+      message.textContent = "Default state restored.";
+      message.className = "message";
+      updateView();
+      movesValue.textContent = "—";
+    });
+
+    speedSlider.addEventListener("input", () => {
+      if (playTimer !== null) {
+        stopPlayback();
+        startPlayback();
+      }
+    });
+
+    stateForm.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const customState = readCustomState();
+
+      if (!isValidState(customState)) {
+        message.textContent = "Invalid state. Enter each number from 0 through 8 exactly once.";
+        message.className = "message error";
+        return;
+      }
+
+      initialState = [...customState];
+      solutionPath = [[...initialState]];
+      currentStep = 0;
+      searchStats = { statesExpanded: 0, statesDiscovered: 1 };
+      renderBoard(initialState);
+      solveCurrentState();
+    });
+
+    window.addEventListener("resize", () => {
+      const state = solutionPath[currentStep] || initialState;
+      renderBoard(state, null);
+    });
+
+    buildInputGrid();
+    renderBoard(initialState);
+    updateView();
+    movesValue.textContent = "—";
+  </script>
+</body>
+</html>
