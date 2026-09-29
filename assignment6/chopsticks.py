@@ -136,14 +136,46 @@ def best_move_dp(depth):
                         d[((i, j), (k, l), depth)] = (0, [])
                         
     for h in range(depth -1, -1, -1):
-        # fill in code below
+        # Fill every possible hand configuration at this level.  Since the
+        # table is built backwards, all states at level h + 1 are available.
+        for i in range(0, 5):
+            for j in range(0, 5):
+                for k in range(0, 5):
+                    for l in range(0, 5):
+                        state = ((i, j), (k, l), h)
 
-        pass
+                        # Terminal states have fixed values from A's point of
+                        # view and do not have a next move.
+                        if (i, j) == (0, 0) and (k, l) == (0, 0):
+                            d[state] = (0, [])
+                            continue
+                        if (i, j) == (0, 0):
+                            d[state] = (-1, [])
+                            continue
+                        if (k, l) == (0, 0):
+                            d[state] = (1, [])
+                            continue
 
+                        successors = next_moves(state)
 
+                        # A nonterminal state normally has legal moves.  If it
+                        # does not, treat it as a draw because neither player
+                        # has lost.
+                        if not successors:
+                            d[state] = (0, [])
+                            continue
 
+                        # Values are always measured from A's perspective:
+                        # A maximizes on even levels and B minimizes on odd
+                        # levels.  max/min returns the chosen successor state.
+                        if h % 2 == 0:
+                            best_next = max(successors,
+                                            key=lambda move: d[move][0])
+                        else:
+                            best_next = min(successors,
+                                            key=lambda move: d[move][0])
 
-
+                        d[state] = (d[best_next][0], best_next)
 
     return d
 

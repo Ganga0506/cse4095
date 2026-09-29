@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Play Chopsticks against a dynamic-programming computer opponent."
+    >
+    <title>Chopsticks · Minimax Game</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="game.js?v=2" defer></script>
+    <script src="ai.js?v=2" defer></script>
+    <script src="app.js?v=2" defer></script>
+  </head>
+
+  <body>
+    <div class="app-shell">
+      <header class="setup-header">
+        <a class="brand" href="#game-board" aria-label="Chopsticks game home">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span>
+            <strong>Chopsticks</strong>
+            <small>Minimax playground</small>
+          </span>
+        </a>
+
+        <form class="game-controls" id="game-setup" aria-label="Game setup">
+          <label class="control-field" for="player-role">
+            <span>Player role</span>
+            <select id="player-role" name="playerRole">
+              <option value="human-a">Human first · Player A</option>
+              <option value="computer-a">Computer first · Player A</option>
+            </select>
+          </label>
+
+          <label class="control-field depth-field" for="max-depth">
+            <span>Maximum depth</span>
+            <span class="number-input">
+              <input
+                id="max-depth"
+                name="maxDepth"
+                type="number"
+                min="2"
+                max="40"
+                step="2"
+                value="10"
+                inputmode="numeric"
+              >
+              <span>moves</span>
+            </span>
+          </label>
+
+          <button class="restart-button" id="restart-game" type="submit">
+            <span aria-hidden="true">↻</span>
+            Restart
+          </button>
+        </form>
+      </header>
+
+      <main>
+        <section class="status-banner" aria-labelledby="game-status-heading">
+          <div class="status-primary">
+            <span class="status-dot" aria-hidden="true"></span>
+            <div>
+              <p class="eyebrow" id="game-status-heading">Game in progress</p>
+              <p class="status-message" id="status-message" aria-live="polite">
+                Your turn — Player A
+              </p>
+            </div>
+          </div>
+
+          <dl class="status-stats">
+            <div>
+              <dt>Current step</dt>
+              <dd><span id="current-step">0</span> / <span id="depth-limit">10</span></dd>
+            </div>
+            <div>
+              <dt>Remaining</dt>
+              <dd><span id="remaining-moves">10</span> moves</dd>
+            </div>
+          </dl>
+
+          <p class="game-result" id="game-result" role="status" hidden>
+            <strong>WIN</strong>
+            <span>Player A wins</span>
+          </p>
+        </section>
+
+        <div class="workspace">
+          <section class="game-card" id="game-board" aria-labelledby="board-heading">
+            <header class="board-heading-row">
+              <div>
+                <p class="eyebrow">Game board</p>
+                <h1 id="board-heading">Choose your move</h1>
+              </div>
+              <p class="turn-key"><span aria-hidden="true"></span> Active turn</p>
+            </header>
+
+            <section class="player-zone player-b" aria-labelledby="player-b-heading">
+              <header class="player-label-row">
+                <div>
+                  <span class="player-avatar" aria-hidden="true">B</span>
+                  <div>
+                    <h2 id="player-b-heading">Player B</h2>
+                    <p id="player-b-role">Computer · Minimizing</p>
+                  </div>
+                </div>
+                <span class="turn-badge" id="player-b-turn">Waiting</span>
+              </header>
+
+              <div class="hands" aria-label="Player B hands">
+                <button class="hand-card" id="b-left" type="button" data-player="b" data-hand="left">
+                  <span class="hand-meta">
+                    <span>Left hand</span>
+                    <strong id="b-left-count">1</strong>
+                  </span>
+                  <span class="finger-meter" aria-hidden="true">
+                    <i class="is-raised"></i><i></i><i></i><i></i>
+                  </span>
+                </button>
+
+                <button class="hand-card" id="b-right" type="button" data-player="b" data-hand="right">
+                  <span class="hand-meta">
+                    <span>Right hand</span>
+                    <strong id="b-right-count">1</strong>
+                  </span>
+                  <span class="finger-meter" aria-hidden="true">
+                    <i class="is-raised"></i><i></i><i></i><i></i>
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            <div class="board-divider" aria-hidden="true">
+              <span></span>
+              <strong>VS</strong>
+              <span></span>
+            </div>
+
+            <section class="player-zone player-a is-active" aria-labelledby="player-a-heading">
+              <header class="player-label-row">
+                <div>
+                  <span class="player-avatar" aria-hidden="true">A</span>
+                  <div>
+                    <h2 id="player-a-heading">Player A</h2>
+                    <p id="player-a-role">You · Maximizing</p>
+                  </div>
+                </div>
+                <span class="turn-badge" id="player-a-turn">Your turn</span>
+              </header>
+
+              <div class="hands" aria-label="Player A hands">
+                <button class="hand-card" id="a-left" type="button" data-player="a" data-hand="left">
+                  <span class="hand-meta">
+                    <span>Left hand</span>
+                    <strong id="a-left-count">1</strong>
+                  </span>
+                  <span class="finger-meter" aria-hidden="true">
+                    <i class="is-raised"></i><i></i><i></i><i></i>
+                  </span>
+                </button>
+
+                <button class="hand-card" id="a-right" type="button" data-player="a" data-hand="right">
+                  <span class="hand-meta">
+                    <span>Right hand</span>
+                    <strong id="a-right-count">1</strong>
+                  </span>
+                  <span class="finger-meter" aria-hidden="true">
+                    <i class="is-raised"></i><i></i><i></i><i></i>
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            <section class="redistribution-controls" id="redistribution-controls" aria-labelledby="redistribution-heading" hidden>
+              <div>
+                <p class="eyebrow">Redistribute</p>
+                <h2 id="redistribution-heading">Move fingers between your hands</h2>
+                <p id="redistribution-description">Select one of your hands as the source.</p>
+              </div>
+              <label class="transfer-amount" for="transfer-amount">
+                <span>Amount</span>
+                <input id="transfer-amount" type="range" min="1" max="1" value="1">
+                <output id="transfer-value" for="transfer-amount">1</output>
+              </label>
+              <button class="transfer-button" id="transfer-fingers" type="button">
+                Transfer to other hand
+              </button>
+            </section>
+
+            <footer class="board-prompt" id="board-prompt" aria-live="polite">
+              <span aria-hidden="true">↗</span>
+              Select one of your hands to begin a move.
+            </footer>
+          </section>
+
+          <aside class="analysis-column" aria-label="AI tools">
+            <details class="analysis-panel" id="analysis-panel" open>
+              <summary>
+                <span class="summary-title">
+                  <span class="analysis-icon" aria-hidden="true">◇</span>
+                  <span>
+                    <strong>AI analysis</strong>
+                    <small>Live minimax evaluation</small>
+                  </span>
+                </span>
+                <span class="toggle-label">Show / hide <i aria-hidden="true"></i></span>
+              </summary>
+
+              <div class="analysis-content">
+                <section class="analysis-section" aria-labelledby="current-state-heading">
+                  <h2 id="current-state-heading">Current state</h2>
+                  <output class="state-code" id="current-state">A [1, 1] · B [1, 1] · h = 0</output>
+                </section>
+
+                <section class="analysis-section" aria-labelledby="computer-role-heading">
+                  <h2 id="computer-role-heading">Computer role</h2>
+                  <div class="role-summary">
+                    <span class="role-avatar" aria-hidden="true">B</span>
+                    <p>
+                      <strong id="computer-role">Player B</strong>
+                      <span id="optimization-mode">Minimizing A’s outcome</span>
+                    </p>
+                  </div>
+                </section>
+
+                <section class="analysis-section" aria-labelledby="considered-moves-heading">
+                  <div class="section-heading-row">
+                    <h2 id="considered-moves-heading">Considered moves</h2>
+                    <span class="count-pill" id="considered-count">0</span>
+                  </div>
+                  <ol class="move-list" id="considered-moves"></ol>
+                </section>
+
+                <section class="analysis-section selected-move" aria-labelledby="selected-move-heading">
+                  <h2 id="selected-move-heading">Selected move</h2>
+                  <output id="selected-move">Waiting for analysis</output>
+                </section>
+
+                <section class="prediction" aria-labelledby="prediction-heading">
+                  <div>
+                    <p id="prediction-heading">Predicted outcome</p>
+                    <small>From Player A’s perspective</small>
+                  </div>
+                  <output class="outcome outcome-tie" id="predicted-outcome">—</output>
+                </section>
+              </div>
+            </details>
+
+            <p class="analysis-note">
+              <span aria-hidden="true">i</span>
+              Scores are shown from Player A’s perspective.
+            </p>
+          </aside>
+        </div>
+      </main>
+
+      <footer class="page-footer">
+        <p>Dynamic programming · Minimax search</p>
+        <p>Player A <span>+1</span> · Tie <span>0</span> · Player B <span>−1</span></p>
+      </footer>
+    </div>
+  </body>
+</html>
