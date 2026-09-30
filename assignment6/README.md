@@ -178,46 +178,42 @@ automatic computer turns, role switching, game over, and restart.
 
 ### 1. Why does Player A maximize while Player B minimizes?
 
-The same score measures every position from A's perspective. A prefers +1 to
-0 or -1, so A maximizes. B prefers an A loss, represented by -1, so B minimizes.
-These opposite choices model each player pursuing their own best result.
+The scores are based on Player A’s outcome: +1 means A wins, 0 means a tie, and -1 
+means A loses. A tries to get the highest score, while B tries to get the lowest score 
+because a loss for A is a win for B.
+
 
 ### 2. Why is the DP table built from the deepest level toward level 0?
 
-A position's value depends on its successors at `h + 1`. Initializing the cutoff
-and working backward guarantees those values are available before a parent is
-evaluated. The process eventually determines the starting position at level 0.
+To choose the best move from a state, we need to know where its possible moves lead. 
+Starting at the deepest level gives us those results first. We then work backward, 
+using the results we already calculated until we reach the starting state.
 
 ### 3. Why is DP faster than recursive exploration?
 
-Naive recursion revisits the same state and level through different move paths,
-potentially exploring a tree of roughly O(M^D) nodes. DP evaluates each state
-and level once and reuses the result. Memoized recursion can achieve similar
-reuse; bottom-up DP is not automatically faster than every recursive approach
-and also evaluates configurations unreachable from the initial position.
+Different sequences of moves can lead to the same state. Basic recursive search would 
+explore that state again each time, repeating work. DP saves the result for each state 
+and level so it only needs to calculate it once. Recursion with memoization can also avoid 
+this repeated work.
 
 ### 4. Why should the UI obtain legal moves from the game engine?
 
-The engine is the shared source of legality for both the human and the computer.
-Duplicating rules in the UI could allow moves the solver never considered or
-reject valid moves. Matching proposed states against `nextMoves()` prevents
-that disagreement and lets presentation changes remain independent of rules.
+
+The UI and the computer should follow the same rules. If the UI had its 
+own separate rules, they could become inconsistent with the engine. Using nextMoves() 
+to check each move keeps everything in agreement and makes the interface easier to update.
 
 ### 5. What part of the project did the AI help with most?
 
-The AI contributed most to translating the Python reference into JavaScript and
-connecting the rule engine, DP solver, and browser controller. It also explained
-the turn-dependent minimax recurrence, drafted the presentation layer, and
-helped exercise the combined behavior. The developer supplied the requirements
-and directed the implementation in stages.
+The AI helped me most with converting the Python code into JavaScript and 
+connecting it to the web interface. It also helped explain minimax and how to 
+build the DP table. I broke the project into smaller tasks and provided the requirements 
+for each stage.
 
 ### 6. What AI-generated suggestion was verified, modified, or rejected?
 
-The generated JavaScript move engine was checked against Python across all
-1,250 configuration/parity cases. Browser integration also required modifying
-the initially generated script structure: an observed `nextMoves` declaration
-collision prevented the solver from loading. The modules were wrapped in
-isolated scopes, solver dependencies were given distinct local names, and
-script URLs were versioned to refresh cached copies. Browser interaction checks
-then confirmed the integrated game worked. This showed why Node checks alone
-were insufficient to verify browser script integration.
+One thing we verified was whether the JavaScript engine generated the same moves as the 
+Python version. The comparison matched across all 1,250 combinations of hand states and turn parity.
+We also had to modify the generated JavaScript after the browser reported a duplicate nextMoves declaration. 
+Isolating the scripts’ variables and renaming the solver’s local references fixed the conflict. 
+This showed me why it was important to test the game in the browser, even after the Node checks passed.
