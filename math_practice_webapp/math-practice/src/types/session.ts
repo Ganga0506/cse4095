@@ -2,6 +2,12 @@ import type { DifficultyLevel, MathOperation, QuestionSource } from './question'
 
 export type SessionLength = 5 | 10 | 20 | 'continuous'
 
+export interface PracticeSetupConfig {
+  operations: MathOperation[]
+  difficulty: DifficultyLevel
+  sessionLength: SessionLength
+}
+
 export interface PracticeAttempt {
   id: string
   questionId: string

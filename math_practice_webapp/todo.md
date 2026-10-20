@@ -58,29 +58,29 @@ src/types/
 
 ### 4. Create the Shared Page Layout
 
-- [ ] Create a reusable page container.
-- [ ] Create the application header.
-- [ ] Add the application title.
-- [ ] Create a basic navigation component.
-- [ ] Add responsive page spacing.
-- [ ] Add child-friendly font sizes.
-- [ ] Add a consistent button style.
+- [x] Create a reusable page container.
+- [x] Create the application header.
+- [x] Add the application title.
+- [x] Create a basic navigation component.
+- [x] Add responsive page spacing.
+- [x] Add child-friendly font sizes.
+- [x] Add a consistent button style.
 
 ### 5. Create the Home Page
 
-- [ ] Add a welcome message.
-- [ ] Add a **Start Practice** button.
-- [ ] Add a **View Statistics** button.
-- [ ] Add a **Settings** button.
-- [ ] Make all buttons keyboard accessible.
-- [ ] Add responsive styling for small screens.
+- [x] Add a welcome message.
+- [x] Add a **Start Practice** button.
+- [x] Add a **View Statistics** button.
+- [x] Add a **Settings** button.
+- [x] Make all buttons keyboard accessible.
+- [x] Add responsive styling for small screens.
 
 ### 6. Add Application Routing
 
-- [ ] Install React Router.
-- [ ] Create the application routes.
-- [ ] Connect the home-page buttons to their routes.
-- [ ] Add a fallback page for unknown routes.
+- [x] Install React Router.
+- [x] Create the application routes.
+- [x] Connect the home-page buttons to their routes.
+- [x] Add a fallback page for unknown routes.
 
 Initial routes:
 
@@ -99,41 +99,41 @@ Initial routes:
 
 ### 7. Create the Operation Selector
 
-- [ ] Create an operation-selection component.
-- [ ] Add an option for addition.
-- [ ] Add an option for subtraction.
-- [ ] Add an option for multiplication.
-- [ ] Add an option for division.
-- [ ] Allow more than one operation to be selected.
-- [ ] Add a shortcut for selecting all operations.
-- [ ] Visually indicate selected operations.
-- [ ] Make operation controls keyboard accessible.
+- [x] Create an operation-selection component.
+- [x] Add an option for addition.
+- [x] Add an option for subtraction.
+- [x] Add an option for multiplication.
+- [x] Add an option for division.
+- [x] Allow more than one operation to be selected.
+- [x] Add a shortcut for selecting all operations.
+- [x] Visually indicate selected operations.
+- [x] Make operation controls keyboard accessible.
 
 ### 8. Create the Difficulty Selector
 
-- [ ] Create four difficulty options.
-- [ ] Label them Beginner, Easy, Intermediate, and Advanced.
-- [ ] Allow one difficulty level to be selected.
-- [ ] Visually indicate the selected level.
-- [ ] Add a short description for each level.
+- [x] Create four difficulty options.
+- [x] Label them Beginner, Easy, Intermediate, and Advanced.
+- [x] Allow one difficulty level to be selected.
+- [x] Visually indicate the selected level.
+- [x] Add a short description for each level.
 
 ### 9. Create the Session-Length Selector
 
-- [ ] Add a 5-question option.
-- [ ] Add a 10-question option.
-- [ ] Add a 20-question option.
-- [ ] Add a continuous-practice option.
-- [ ] Set a sensible default session length.
+- [x] Add a 5-question option.
+- [x] Add a 10-question option.
+- [x] Add a 20-question option.
+- [x] Add a continuous-practice option.
+- [x] Set a sensible default session length.
 
 ### 10. Build the Practice Setup Page
 
-- [ ] Add the operation selector.
-- [ ] Add the difficulty selector.
-- [ ] Add the session-length selector.
-- [ ] Add a **Start Session** button.
-- [ ] Disable the button when no operation is selected.
-- [ ] Display a validation message when necessary.
-- [ ] Pass the selected configuration to the practice session.
+- [x] Add the operation selector.
+- [x] Add the difficulty selector.
+- [x] Add the session-length selector.
+- [x] Add a **Start Session** button.
+- [x] Disable the button when no operation is selected.
+- [x] Display a validation message when necessary.
+- [x] Pass the selected configuration to the practice session.
 
 ---
 

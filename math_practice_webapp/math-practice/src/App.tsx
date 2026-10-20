@@ -1,11 +1,17 @@
+import { BrowserRouter } from 'react-router'
+
+import { AppRoutes } from './app/AppRoutes'
+import { Header } from './components/layout/Header'
 import './App.css'
 
 function App() {
   return (
-    <main className="app-shell">
-      <h1>Math Practice</h1>
-      <p>Fun math practice is on its way!</p>
-    </main>
+    <BrowserRouter>
+      <div className="app-shell">
+        <Header />
+        <AppRoutes />
+      </div>
+    </BrowserRouter>
   )
 }
 

@@ -1,7 +1,7 @@
 :root {
-  color: #172554;
-  background: #eff6ff;
-  font-family: Arial, sans-serif;
+  color: #17325c;
+  background: #f7f5ff;
+  font-family: Nunito, 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -14,4 +14,21 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible + span {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
 }
