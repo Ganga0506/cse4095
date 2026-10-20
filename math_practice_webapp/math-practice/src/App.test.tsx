@@ -26,8 +26,9 @@ describe('App', () => {
 
     await user.click(startSession)
 
-    expect(screen.getByRole('heading', { name: /great choices/i })).toBeInTheDocument()
-    expect(screen.getByText('Addition')).toBeInTheDocument()
-    expect(screen.getByText('10 questions')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /take your time—you've got this/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Question 1 of 10')).toBeInTheDocument()
   })
 })

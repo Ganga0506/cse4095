@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import type { Question } from '../../types'
 
@@ -18,7 +18,11 @@ function formatQuestionWithAnswer(question: Question) {
   return question.displayText.replace('?', String(question.correctAnswer))
 }
 
-export function QuestionCard({
+export function QuestionCard({ question, ...props }: QuestionCardProps) {
+  return <QuestionCardContent key={question.id} question={question} {...props} />
+}
+
+function QuestionCardContent({
   question,
   currentQuestion,
   totalQuestions,
@@ -28,12 +32,6 @@ export function QuestionCard({
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [recordedResult, setRecordedResult] = useState<SelfReportedResult | null>(null)
-
-  useEffect(() => {
-    setSelectedAnswer(null)
-    setIsCardFlipped(false)
-    setRecordedResult(null)
-  }, [question.id])
 
   function handleFlip() {
     if (selectedAnswer !== null) {
@@ -114,7 +112,8 @@ export function QuestionCard({
               </p>
             </div>
             <p className="answer-explanation">
-              Look at the numbers and operation carefully. Every try helps your math brain grow!
+              Look at the numbers and operation carefully. Every try helps your math
+              brain grow!
             </p>
             <div className="result-actions">
               <button
@@ -136,7 +135,9 @@ export function QuestionCard({
             </div>
             {recordedResult && (
               <p className="result-confirmation" role="status">
-                {recordedResult === 'correct' ? 'Nice work!' : 'Keep practicing—you are improving!'}
+                {recordedResult === 'correct'
+                  ? 'Nice work!'
+                  : 'Keep practicing—you are improving!'}
               </p>
             )}
           </section>

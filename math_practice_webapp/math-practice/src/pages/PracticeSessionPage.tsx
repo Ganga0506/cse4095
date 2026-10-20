@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
-import { QuestionCard, type SelfReportedResult } from '../components/practice/QuestionCard'
+import {
+  QuestionCard,
+  type SelfReportedResult,
+} from '../components/practice/QuestionCard'
 import { PageContainer } from '../components/layout/PageContainer'
 import { generateQuestion } from '../services/questionGenerator'
 import type { PracticeSetupConfig } from '../types'
@@ -38,7 +41,9 @@ export function PracticeSessionPage() {
   }
 
   const totalQuestions =
-    configuration.sessionLength === 'continuous' ? undefined : configuration.sessionLength
+    configuration.sessionLength === 'continuous'
+      ? undefined
+      : configuration.sessionLength
 
   function handleResult(result: SelfReportedResult) {
     setResultMessage(
@@ -73,7 +78,11 @@ export function PracticeSessionPage() {
         totalQuestions={totalQuestions}
       />
 
-      {resultMessage && <p className="session-result-message" role="status">{resultMessage}</p>}
+      {resultMessage && (
+        <p className="session-result-message" role="status">
+          {resultMessage}
+        </p>
+      )}
     </PageContainer>
   )
 }
