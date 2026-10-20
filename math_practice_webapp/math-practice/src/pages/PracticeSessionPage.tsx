@@ -1,25 +1,30 @@
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 
+import { QuestionCard, type SelfReportedResult } from '../components/practice/QuestionCard'
 import { PageContainer } from '../components/layout/PageContainer'
-import type { MathOperation, PracticeSetupConfig } from '../types'
-
-const operationLabels: Record<MathOperation, string> = {
-  addition: 'Addition',
-  subtraction: 'Subtraction',
-  multiplication: 'Multiplication',
-  division: 'Division',
-}
+import { generateQuestion } from '../services/questionGenerator'
+import type { PracticeSetupConfig } from '../types'
 
 interface PracticeSessionLocationState {
   configuration?: PracticeSetupConfig
+}
+
+function createPracticeQuestion(configuration: PracticeSetupConfig) {
+  return generateQuestion(configuration.operations, configuration.difficulty)
 }
 
 export function PracticeSessionPage() {
   const location = useLocation()
   const state = location.state as PracticeSessionLocationState | null
   const configuration = state?.configuration
+  const [animationEnabled, setAnimationEnabled] = useState(true)
+  const [resultMessage, setResultMessage] = useState('')
+  const [question] = useState(() =>
+    configuration ? createPracticeQuestion(configuration) : null,
+  )
 
-  if (!configuration) {
+  if (!configuration || !question) {
     return (
       <PageContainer className="placeholder-page">
         <p className="eyebrow">No session yet</p>
@@ -32,37 +37,43 @@ export function PracticeSessionPage() {
     )
   }
 
-  const lengthLabel =
-    configuration.sessionLength === 'continuous'
-      ? 'Keep going until you choose to stop'
-      : `${configuration.sessionLength} questions`
+  const totalQuestions =
+    configuration.sessionLength === 'continuous' ? undefined : configuration.sessionLength
+
+  function handleResult(result: SelfReportedResult) {
+    setResultMessage(
+      result === 'correct'
+        ? 'You marked this answer correct. Session scoring arrives in Phase 7.'
+        : 'You marked this answer for more practice. Session scoring arrives in Phase 7.',
+    )
+  }
 
   return (
-    <PageContainer className="placeholder-page">
-      <p className="eyebrow">Your session is ready</p>
-      <h1>Great choices!</h1>
-      <p>The question-card practice experience arrives in the next phase.</p>
-      <dl className="session-preview">
+    <PageContainer className="practice-session-page">
+      <div className="practice-session-header">
         <div>
-          <dt>Math skills</dt>
-          <dd>
-            {configuration.operations
-              .map((operation) => operationLabels[operation])
-              .join(', ')}
-          </dd>
+          <p className="eyebrow">Practice time</p>
+          <h1>Take your time—you&apos;ve got this!</h1>
         </div>
-        <div>
-          <dt>Challenge level</dt>
-          <dd>Level {configuration.difficulty}</dd>
-        </div>
-        <div>
-          <dt>Practice length</dt>
-          <dd>{lengthLabel}</dd>
-        </div>
-      </dl>
-      <Link className="button button--secondary" to="/practice/setup">
-        Change setup
-      </Link>
+        <label className="animation-setting">
+          <input
+            checked={animationEnabled}
+            onChange={(event) => setAnimationEnabled(event.target.checked)}
+            type="checkbox"
+          />
+          <span>Use card-flip animation</span>
+        </label>
+      </div>
+
+      <QuestionCard
+        animationEnabled={animationEnabled}
+        currentQuestion={1}
+        onResult={handleResult}
+        question={question}
+        totalQuestions={totalQuestions}
+      />
+
+      {resultMessage && <p className="session-result-message" role="status">{resultMessage}</p>}
     </PageContainer>
   )
 }
