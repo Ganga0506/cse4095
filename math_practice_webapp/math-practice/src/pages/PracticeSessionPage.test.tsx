@@ -232,4 +232,83 @@ describe('PracticeSessionPage', () => {
       mistakePatternId: reviewPattern.id,
     })
   })
+
+  it('completes a mixed-operation session and records only enabled operations', async () => {
+    const user = userEvent.setup()
+    const configuration: PracticeSetupConfig = {
+      ...fiveQuestionConfiguration,
+      operations: ['addition', 'subtraction', 'multiplication', 'division'],
+    }
+    renderSession(configuration)
+
+    for (let questionNumber = 1; questionNumber <= 5; questionNumber += 1) {
+      await answerCurrentQuestion(user)
+      if (questionNumber < 5) {
+        await screen.findByText(`Question ${questionNumber + 1} of 5`)
+      }
+    }
+
+    expect(
+      await screen.findByRole('heading', { name: /great effort/i }),
+    ).toBeInTheDocument()
+    expect(storageService.loadAttempts()).toHaveLength(5)
+    expect(
+      storageService
+        .loadAttempts()
+        .every((attempt) => configuration.operations.includes(attempt.operation)),
+    ).toBe(true)
+  })
+
+  it('masters a mistake pattern through a review session', async () => {
+    storageService.saveMistakePatterns([reviewPattern])
+    storageService.saveSettings({
+      ...storageService.loadSettings(),
+      masteryThreshold: 1,
+    })
+    const user = userEvent.setup()
+    renderSession({
+      operations: ['addition'],
+      difficulty: 1,
+      sessionLength: 5,
+      mode: 'mistake-review',
+    })
+
+    await answerCurrentQuestion(user)
+    await screen.findByText('Question 2 of 5')
+
+    expect(storageService.loadMistakePatterns()[0]).toMatchObject({
+      id: reviewPattern.id,
+      similarCorrectCount: 1,
+      mastered: true,
+    })
+  })
+
+  it('can complete a full session using only keyboard activation', async () => {
+    const user = userEvent.setup()
+    renderSession(fiveQuestionConfiguration)
+
+    for (let questionNumber = 1; questionNumber <= 5; questionNumber += 1) {
+      const choice = screen.getAllByRole('button', {
+        name: /^answer choice 1:/i,
+      })[0]
+      choice.focus()
+      await user.keyboard('{Enter}')
+
+      const flipButton = screen.getByRole('button', { name: /flip card/i })
+      flipButton.focus()
+      await user.keyboard(' ')
+
+      const rightButton = screen.getByRole('button', { name: /i got it right/i })
+      rightButton.focus()
+      await user.keyboard('{Enter}')
+
+      if (questionNumber < 5) {
+        await screen.findByText(`Question ${questionNumber + 1} of 5`)
+      }
+    }
+
+    expect(
+      await screen.findByRole('heading', { name: /great effort/i }),
+    ).toBeInTheDocument()
+  })
 })

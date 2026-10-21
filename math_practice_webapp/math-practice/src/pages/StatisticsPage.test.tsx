@@ -1,9 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { MistakePattern, PracticeAttempt } from '../types'
+import { completeSession, createPracticeSession } from '../services/practiceSession'
 import { storageService } from '../services/storage'
 
 import { StatisticsPage } from './StatisticsPage'
@@ -63,6 +64,7 @@ function renderStatistics() {
 
 afterEach(() => {
   localStorage.clear()
+  vi.restoreAllMocks()
 })
 
 describe('StatisticsPage mistake review section', () => {
@@ -104,5 +106,30 @@ describe('StatisticsPage mistake review section', () => {
       .getByRole('heading', { name: '6 × 7 = 42' })
       .closest('article')
     expect(masteredDetails).toHaveTextContent('Mastery progress3 / 3')
+  })
+
+  it('resets statistics only after confirmation and preserves them when cancelled', async () => {
+    const completedSession = completeSession(
+      createPracticeSession({
+        operations: ['addition'],
+        difficulty: 1,
+        sessionLength: 5,
+        mode: 'regular',
+      }),
+    )
+    storageService.saveCompletedSession(completedSession)
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const user = userEvent.setup()
+    renderStatistics()
+
+    const resetButton = screen.getByRole('button', { name: /reset statistics/i })
+    await user.click(resetButton)
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(storageService.loadCompletedSessions()).toEqual([completedSession])
+
+    confirm.mockReturnValue(true)
+    await user.click(resetButton)
+    expect(storageService.loadCompletedSessions()).toEqual([])
+    expect(resetButton).toBeDisabled()
   })
 })
