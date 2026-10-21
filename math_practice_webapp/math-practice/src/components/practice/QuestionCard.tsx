@@ -11,7 +11,7 @@ interface QuestionCardProps {
   currentQuestion: number
   totalQuestions?: number
   animationEnabled?: boolean
-  onResult?: (result: SelfReportedResult) => void
+  onResult?: (result: SelfReportedResult, selectedAnswer: number) => void
 }
 
 function formatQuestionWithAnswer(question: Question) {
@@ -45,7 +45,9 @@ function QuestionCardContent({
     }
 
     setRecordedResult(result)
-    onResult?.(result)
+    if (selectedAnswer !== null) {
+      onResult?.(result, selectedAnswer)
+    }
   }
 
   const questionProgress = totalQuestions

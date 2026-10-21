@@ -33,4 +33,6 @@ export interface PracticeSession {
   attempted: number
   correct: number
   incorrect: number
+  currentQuestionIndex: number
+  isActive: boolean
 }

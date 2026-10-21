@@ -1,56 +1,68 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router'
+import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import {
   QuestionCard,
   type SelfReportedResult,
 } from '../components/practice/QuestionCard'
+import { ProgressBar } from '../components/practice/ProgressBar'
 import { PageContainer } from '../components/layout/PageContainer'
-import { generateQuestion } from '../services/questionGenerator'
+import { usePracticeSession } from '../hooks/usePracticeSession'
+import { isValidPracticeSetup } from '../services/practiceSession'
 import type { PracticeSetupConfig } from '../types'
 
 interface PracticeSessionLocationState {
   configuration?: PracticeSetupConfig
 }
 
-function createPracticeQuestion(configuration: PracticeSetupConfig) {
-  return generateQuestion(configuration.operations, configuration.difficulty)
-}
-
 export function PracticeSessionPage() {
   const location = useLocation()
   const state = location.state as PracticeSessionLocationState | null
-  const configuration = state?.configuration
-  const [animationEnabled, setAnimationEnabled] = useState(true)
-  const [resultMessage, setResultMessage] = useState('')
-  const [question] = useState(() =>
-    configuration ? createPracticeQuestion(configuration) : null,
-  )
 
-  if (!configuration || !question) {
-    return (
-      <PageContainer className="placeholder-page">
-        <p className="eyebrow">No session yet</p>
-        <h1>Set up your practice first</h1>
-        <p>Choose your math skills and challenge level before starting a session.</p>
-        <Link className="button button--primary" to="/practice/setup">
-          Go to Practice Setup
-        </Link>
-      </PageContainer>
-    )
+  if (!isValidPracticeSetup(state?.configuration)) {
+    return <Navigate replace to="/practice/setup" />
   }
 
-  const totalQuestions =
-    configuration.sessionLength === 'continuous'
-      ? undefined
-      : configuration.sessionLength
+  return <ActivePracticeSession configuration={state.configuration} />
+}
 
-  function handleResult(result: SelfReportedResult) {
-    setResultMessage(
-      result === 'correct'
-        ? 'You marked this answer correct. Session scoring arrives in Phase 7.'
-        : 'You marked this answer for more practice. Session scoring arrives in Phase 7.',
-    )
+interface ActivePracticeSessionProps {
+  configuration: PracticeSetupConfig
+}
+
+function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
+  const navigate = useNavigate()
+  const [animationEnabled, setAnimationEnabled] = useState(true)
+  const { attempts, currentQuestion, endSession, recordResult, session } =
+    usePracticeSession(configuration)
+  const totalQuestions =
+    session.sessionLength === 'continuous' ? undefined : session.sessionLength
+  const isContinuous = totalQuestions === undefined
+
+  function navigateToSummary() {
+    const completedSession = endSession()
+    navigate('/practice/summary', {
+      replace: true,
+      state: { configuration, ...completedSession },
+    })
+  }
+
+  function handleResult(result: SelfReportedResult, selectedAnswer: number) {
+    const outcome = recordResult(result, selectedAnswer)
+
+    if (outcome.kind === 'completed') {
+      navigate('/practice/summary', {
+        replace: true,
+        state: { configuration, ...outcome.completedSession },
+      })
+    }
+  }
+
+  function handleEndSession() {
+    const shouldEnd = window.confirm('End this practice session and view your summary?')
+    if (shouldEnd) {
+      navigateToSummary()
+    }
   }
 
   return (
@@ -70,18 +82,26 @@ export function PracticeSessionPage() {
         </label>
       </div>
 
+      {totalQuestions !== undefined && (
+        <ProgressBar completed={attempts.length} total={totalQuestions} />
+      )}
+
       <QuestionCard
         animationEnabled={animationEnabled}
-        currentQuestion={1}
+        currentQuestion={session.currentQuestionIndex + 1}
         onResult={handleResult}
-        question={question}
+        question={currentQuestion}
         totalQuestions={totalQuestions}
       />
 
-      {resultMessage && (
-        <p className="session-result-message" role="status">
-          {resultMessage}
-        </p>
+      {isContinuous && (
+        <button
+          className="button button--secondary end-session-button"
+          onClick={handleEndSession}
+          type="button"
+        >
+          End Session
+        </button>
       )}
     </PageContainer>
   )
