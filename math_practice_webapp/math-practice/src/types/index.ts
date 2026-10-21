@@ -13,4 +13,8 @@ export type {
   SessionLength,
 } from './session'
 export type { AppSettings } from './settings'
-export type { AppStatistics, OperationStatistics } from './statistics'
+export type {
+  AppStatistics,
+  MistakeStatistics,
+  OperationStatistics,
+} from './statistics'

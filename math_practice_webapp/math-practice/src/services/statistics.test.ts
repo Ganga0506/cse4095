@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import type { PracticeAttempt } from '../types'
+import type { MistakePattern, PracticeAttempt } from '../types'
 
-import { calculateAccuracy, calculateStatistics } from './statistics'
+import {
+  calculateAccuracy,
+  calculateMistakeStatistics,
+  calculateStatistics,
+  sortMistakePatterns,
+} from './statistics'
 
 function createAttempt(overrides: Partial<PracticeAttempt> = {}): PracticeAttempt {
   return {
@@ -18,6 +23,22 @@ function createAttempt(overrides: Partial<PracticeAttempt> = {}): PracticeAttemp
     source: 'regular',
     attemptedAt: '2026-10-21T10:00:00.000Z',
     sessionId: 'session-1',
+    ...overrides,
+  }
+}
+
+function createPattern(overrides: Partial<MistakePattern> = {}): MistakePattern {
+  return {
+    id: 'pattern-1',
+    operation: 'addition',
+    firstOperand: 4,
+    secondOperand: 3,
+    correctAnswer: 7,
+    difficulty: 1,
+    incorrectCount: 1,
+    similarCorrectCount: 0,
+    lastIncorrectAt: '2026-10-21T10:00:00.000Z',
+    mastered: false,
     ...overrides,
   }
 }
@@ -113,6 +134,77 @@ describe('statistics calculations', () => {
       attempted: 1,
       correct: 0,
       incorrect: 1,
+    })
+  })
+})
+
+describe('mistake statistics calculations', () => {
+  it('calculates review totals and separates active and mastered patterns', () => {
+    const activePattern = createPattern({ incorrectCount: 3 })
+    const masteredPattern = createPattern({
+      id: 'pattern-2',
+      operation: 'multiplication',
+      mastered: true,
+      similarCorrectCount: 3,
+    })
+    const statistics = calculateMistakeStatistics(
+      [activePattern, masteredPattern],
+      [
+        createAttempt({ id: 'review-1', source: 'mistake-review' }),
+        createAttempt({
+          id: 'review-2',
+          source: 'mistake-review',
+          selfReportedCorrect: false,
+        }),
+        createAttempt({ id: 'regular-1', source: 'regular' }),
+      ],
+    )
+
+    expect(statistics).toMatchObject({
+      activePatternCount: 1,
+      masteredPatternCount: 1,
+      similarQuestionsPracticed: 2,
+      reviewQuestionsCorrect: 1,
+      mostMissedOperations: ['addition'],
+      mostMissedFacts: [activePattern],
+    })
+  })
+
+  it('keeps every most-missed operation and fact when counts are tied', () => {
+    const addition = createPattern({ id: 'addition', incorrectCount: 4 })
+    const subtraction = createPattern({
+      id: 'subtraction',
+      operation: 'subtraction',
+      incorrectCount: 4,
+    })
+    const lessFrequent = createPattern({
+      id: 'less-frequent',
+      operation: 'multiplication',
+      incorrectCount: 2,
+    })
+    const statistics = calculateMistakeStatistics(
+      [lessFrequent, addition, subtraction],
+      [],
+    )
+
+    expect(statistics.mostMissedOperations).toEqual(['addition', 'subtraction'])
+    expect(statistics.mostMissedFacts).toEqual([addition, subtraction])
+    expect(sortMistakePatterns([lessFrequent, addition, subtraction])).toEqual([
+      addition,
+      subtraction,
+      lessFrequent,
+    ])
+  })
+
+  it('returns empty mistake insights when no patterns exist', () => {
+    expect(calculateMistakeStatistics([], [])).toMatchObject({
+      activePatternCount: 0,
+      masteredPatternCount: 0,
+      similarQuestionsPracticed: 0,
+      reviewQuestionsCorrect: 0,
+      mostMissedOperations: [],
+      mostMissedFacts: [],
+      sortedPatterns: [],
     })
   })
 })

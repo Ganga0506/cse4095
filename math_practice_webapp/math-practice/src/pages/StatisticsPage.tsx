@@ -1,9 +1,18 @@
 import { useState } from 'react'
 
 import { PageContainer } from '../components/layout/PageContainer'
-import type { DifficultyLevel, MathOperation, OperationStatistics } from '../types'
+import type {
+  DifficultyLevel,
+  MathOperation,
+  MistakePattern,
+  OperationStatistics,
+} from '../types'
 import { storageService } from '../services/storage'
-import { calculateAccuracy, calculateStatistics } from '../services/statistics'
+import {
+  calculateAccuracy,
+  calculateMistakeStatistics,
+  calculateStatistics,
+} from '../services/statistics'
 
 const operations: Array<{ value: MathOperation; label: string }> = [
   { value: 'addition', label: 'Addition' },
@@ -25,6 +34,17 @@ function formatSessionDate(date: string): string {
     month: 'short',
     year: 'numeric',
   }).format(new Date(date))
+}
+
+const operationSymbols: Record<MathOperation, string> = {
+  addition: '+',
+  subtraction: '−',
+  multiplication: '×',
+  division: '÷',
+}
+
+function formatFact(pattern: MistakePattern): string {
+  return `${pattern.firstOperand} ${operationSymbols[pattern.operation]} ${pattern.secondOperand} = ${pattern.correctAnswer}`
 }
 
 function StatisticsCard({
@@ -61,7 +81,10 @@ function StatisticsCard({
 export function StatisticsPage() {
   const [, setRevision] = useState(0)
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
+  const [mistakeView, setMistakeView] = useState<'active' | 'mastered'>('active')
   const attempts = storageService.loadAttempts()
+  const mistakePatterns = storageService.loadMistakePatterns()
+  const settings = storageService.loadSettings()
   const sessions = storageService
     .loadCompletedSessions()
     .slice()
@@ -71,8 +94,13 @@ export function StatisticsPage() {
         Date.parse(first.completedAt ?? first.startedAt),
     )
   const statistics = calculateStatistics(attempts)
+  const mistakeStatistics = calculateMistakeStatistics(mistakePatterns, attempts)
   const overallAccuracy = calculateAccuracy(statistics.correct, statistics.attempted)
   const hasStatistics = attempts.length > 0 || sessions.length > 0
+  const hasMistakes = mistakePatterns.length > 0
+  const displayedPatterns = mistakeStatistics.sortedPatterns.filter((pattern) =>
+    mistakeView === 'active' ? !pattern.mastered : pattern.mastered,
+  )
 
   function resetStatistics() {
     const confirmed = window.confirm(
@@ -187,6 +215,136 @@ export function StatisticsPage() {
             />
           ))}
         </div>
+      </section>
+
+      <section
+        aria-labelledby="mistake-statistics-heading"
+        className="statistics-section"
+      >
+        <div className="section-heading">
+          <h2 id="mistake-statistics-heading">Mistake review</h2>
+          <p>Use these clues to focus on the facts that need another try.</p>
+        </div>
+
+        <div className="overall-statistics mistake-statistics" role="list">
+          <div role="listitem">
+            <span>Active patterns</span>
+            <strong>{mistakeStatistics.activePatternCount}</strong>
+          </div>
+          <div role="listitem">
+            <span>Mastered patterns</span>
+            <strong>{mistakeStatistics.masteredPatternCount}</strong>
+          </div>
+          <div role="listitem">
+            <span>Similar questions practiced</span>
+            <strong>{mistakeStatistics.similarQuestionsPracticed}</strong>
+          </div>
+          <div role="listitem">
+            <span>Review questions correct</span>
+            <strong>{mistakeStatistics.reviewQuestionsCorrect}</strong>
+          </div>
+        </div>
+
+        {!hasMistakes ? (
+          <div className="empty-state empty-state--compact">
+            <h3>No mistake patterns yet</h3>
+            <p>
+              Mark a regular-practice question as wrong to save it here for a helpful
+              review later.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mistake-insight-grid">
+              <article className="mistake-insight">
+                <h3>Most missed skill</h3>
+                <p>
+                  {mistakeStatistics.mostMissedOperations
+                    .map(
+                      (operation) =>
+                        operations.find(({ value }) => value === operation)?.label,
+                    )
+                    .join(' and ')}
+                </p>
+              </article>
+              <article className="mistake-insight">
+                <h3>Tricky number facts</h3>
+                <ul>
+                  {mistakeStatistics.mostMissedFacts.map((pattern) => (
+                    <li key={pattern.id}>{formatFact(pattern)}</li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+
+            <div className="mistake-details-heading">
+              <div>
+                <h3>Mistake details</h3>
+                <p>Patterns are sorted by how often they have been missed.</p>
+              </div>
+              <div aria-label="Mistake pattern view" className="mistake-view-tabs">
+                <button
+                  aria-pressed={mistakeView === 'active'}
+                  className="button button--secondary"
+                  onClick={() => setMistakeView('active')}
+                  type="button"
+                >
+                  Active ({mistakeStatistics.activePatternCount})
+                </button>
+                <button
+                  aria-pressed={mistakeView === 'mastered'}
+                  className="button button--secondary"
+                  onClick={() => setMistakeView('mastered')}
+                  type="button"
+                >
+                  Mastered ({mistakeStatistics.masteredPatternCount})
+                </button>
+              </div>
+            </div>
+
+            {displayedPatterns.length === 0 ? (
+              <div className="empty-state empty-state--compact">
+                <p>
+                  {mistakeView === 'active'
+                    ? 'Every saved pattern is mastered right now—nice work!'
+                    : 'Keep practicing similar questions to master your first pattern.'}
+                </p>
+              </div>
+            ) : (
+              <div className="mistake-pattern-list">
+                {displayedPatterns.map((pattern) => {
+                  const progress = Math.min(
+                    pattern.similarCorrectCount,
+                    settings.masteryThreshold,
+                  )
+
+                  return (
+                    <article className="mistake-pattern" key={pattern.id}>
+                      <div>
+                        <h4>{formatFact(pattern)}</h4>
+                        <p>
+                          Last incorrect {formatSessionDate(pattern.lastIncorrectAt)}
+                        </p>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Incorrect</dt>
+                          <dd>{pattern.incorrectCount}</dd>
+                        </div>
+                        <div>
+                          <dt>Mastery progress</dt>
+                          <dd>
+                            {progress} / {settings.masteryThreshold}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <section aria-labelledby="recent-sessions-heading" className="statistics-section">

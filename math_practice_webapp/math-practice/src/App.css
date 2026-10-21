@@ -1010,6 +1010,101 @@ h2 {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.mistake-insight-grid,
+.mistake-pattern-list {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.mistake-insight-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mistake-insight,
+.mistake-pattern {
+  background: rgb(255 255 255 / 84%);
+  border: 1px solid #ced8f4;
+  border-radius: 1rem;
+  box-shadow: 0 8px 18px rgb(29 65 120 / 8%);
+  padding: 1.15rem;
+}
+
+.mistake-insight h3,
+.mistake-pattern h4,
+.mistake-details-heading h3 {
+  color: #17325c;
+  margin: 0;
+}
+
+.mistake-insight p,
+.mistake-insight ul,
+.mistake-pattern p,
+.mistake-details-heading p {
+  color: #4e6687;
+  margin-bottom: 0;
+}
+
+.mistake-insight ul {
+  margin-top: 0.55rem;
+  padding-left: 1.15rem;
+}
+
+.mistake-details-heading {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+}
+
+.mistake-details-heading p {
+  margin-top: 0.3rem;
+}
+
+.mistake-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.mistake-view-tabs .button[aria-pressed='true'] {
+  background: #edf2ff;
+  border-color: #3056d3;
+  color: #17325c;
+}
+
+.mistake-pattern {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.55fr);
+}
+
+.mistake-pattern p {
+  margin-top: 0.3rem;
+}
+
+.mistake-pattern dl {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.mistake-pattern dt {
+  color: #6251b4;
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mistake-pattern dd {
+  color: #1f4477;
+  font-weight: 900;
+  margin: 0.18rem 0 0;
+}
+
 .settings-panel {
   display: grid;
   gap: 1rem;
@@ -1143,13 +1238,17 @@ h2 {
 
   .statistics-page__heading,
   .danger-zone,
-  .recent-session {
+  .recent-session,
+  .mistake-details-heading,
+  .mistake-pattern {
     align-items: flex-start;
     flex-direction: column;
   }
 
   .statistics-page__heading,
-  .danger-zone {
+  .danger-zone,
+  .mistake-details-heading,
+  .mistake-pattern {
     display: flex;
   }
 
@@ -1218,8 +1317,10 @@ h2 {
 
   .overall-statistics,
   .statistics-card-grid,
+  .mistake-insight-grid,
   .settings-operation-grid,
   .statistics-card__details,
+  .mistake-pattern dl,
   .recent-session dl {
     grid-template-columns: 1fr;
   }
