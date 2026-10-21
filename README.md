@@ -2,6 +2,14 @@
 
 Coursework and assignments for CSE4095.
 
+## Math Practice Web App
+
+`math-practice/` contains a browser-based arithmetic practice app for children ages 7–12.
+For installation, local development, tests, and production-build instructions, see
+[math-practice/README.md](math-practice/README.md).
+
+For Netlify deployment, set the base directory to `math-practice`.
+
 ---
 
 ## Assignment 1 — Recursive Checker Swap
