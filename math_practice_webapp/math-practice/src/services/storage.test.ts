@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { AppSettings, PracticeSetupConfig, Question } from '../types'
+import type {
+  AppSettings,
+  MistakePattern,
+  PracticeSetupConfig,
+  Question,
+} from '../types'
 
 import {
   CURRENT_STORAGE_SCHEMA_VERSION,
@@ -30,6 +35,19 @@ const question: Question = {
   choices: [7, 6, 8, 5],
   difficulty: 1,
   source: 'regular',
+}
+
+const mistakePattern: MistakePattern = {
+  id: 'mistake-1',
+  operation: 'addition',
+  firstOperand: 3,
+  secondOperand: 4,
+  correctAnswer: 7,
+  difficulty: 1,
+  incorrectCount: 1,
+  similarCorrectCount: 0,
+  lastIncorrectAt: '2026-10-21T10:00:00.000Z',
+  mastered: false,
 }
 
 function createUnavailableStorage(): Storage {
@@ -113,6 +131,41 @@ describe('storageService', () => {
     expect(storageService.loadAttempts()).toEqual([])
   })
 
+  it('migrates v1 data and filters invalid mistake patterns without losing valid data', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 1,
+        settings: defaultSettings,
+        sessions: [],
+        attempts: [],
+      }),
+    )
+    expect(storageService.loadSettings()).toEqual(defaultSettings)
+    expect(storageService.loadMistakePatterns()).toEqual([])
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: CURRENT_STORAGE_SCHEMA_VERSION,
+        settings: defaultSettings,
+        sessions: [],
+        attempts: [],
+        mistakePatterns: [mistakePattern, { id: 'not-a-complete-pattern' }],
+      }),
+    )
+    expect(storageService.loadSettings()).toEqual(defaultSettings)
+    expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
+  })
+
+  it('persists validated mistake patterns', () => {
+    expect(storageService.saveMistakePatterns([mistakePattern])).toBe(true)
+    expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
+    expect(
+      storageService.saveMistakePatterns([{ id: 'invalid' } as MistakePattern]),
+    ).toBe(false)
+  })
+
   it('persists completed sessions and all required attempt fields', () => {
     const session = completeSession(createPracticeSession(configuration))
     const attempt = createPracticeAttempt(session, question, 6, false)
@@ -144,14 +197,17 @@ describe('storageService', () => {
     storageService.saveSettings(settings)
     storageService.saveAttempt(attempt)
     storageService.saveCompletedSession(session)
+    storageService.saveMistakePatterns([mistakePattern])
 
     expect(storageService.clearStatistics()).toBe(true)
     expect(storageService.loadSettings()).toEqual(settings)
     expect(storageService.loadAttempts()).toEqual([])
     expect(storageService.loadCompletedSessions()).toEqual([])
+    expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
 
     expect(storageService.clear()).toBe(true)
     expect(storageService.loadSettings()).toEqual(defaultSettings)
+    expect(storageService.loadMistakePatterns()).toEqual([])
   })
 
   it('returns safe values when storage is unavailable or full', () => {

@@ -42,6 +42,13 @@ async function answerCurrentQuestion(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /i got it right/i }))
 }
 
+async function recordCurrentQuestionAsWrong(user: ReturnType<typeof userEvent.setup>) {
+  const answerChoice = screen.getAllByRole('button', { name: /^answer choice 1:/i })[0]
+  await user.click(answerChoice)
+  await user.click(screen.getByRole('button', { name: /flip card/i }))
+  await user.click(screen.getByRole('button', { name: /i got it wrong/i }))
+}
+
 afterEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
@@ -107,5 +114,21 @@ describe('PracticeSessionPage', () => {
     })
     expect(screen.getByText('2 correct answers')).toBeInTheDocument()
     expect(screen.getByText('Questions attempted').parentElement).toHaveTextContent('2')
+  })
+
+  it('stores an incorrect self-reported answer as a mistake pattern', async () => {
+    const user = userEvent.setup()
+    renderSession(fiveQuestionConfiguration)
+
+    await recordCurrentQuestionAsWrong(user)
+    await screen.findByText('Question 2 of 5')
+
+    expect(storageService.loadMistakePatterns()).toHaveLength(1)
+    expect(storageService.loadMistakePatterns()[0]).toMatchObject({
+      operation: 'addition',
+      difficulty: 1,
+      incorrectCount: 1,
+      similarCorrectCount: 0,
+    })
   })
 })

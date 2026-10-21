@@ -16,6 +16,7 @@ import {
   isSessionComplete,
 } from '../services/practiceSession'
 import { generateQuestion } from '../services/questionGenerator'
+import { recordMistakePattern } from '../services/mistakePatterns'
 import { storageService } from '../services/storage'
 
 export interface CompletedSession {
@@ -51,6 +52,19 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
       setStorageWarning(
         'Your practice is continuing, but this answer could not be saved on this device.',
       )
+    }
+
+    if (result === 'incorrect') {
+      const updatedMistakePatterns = recordMistakePattern(
+        storageService.loadMistakePatterns(),
+        currentQuestion,
+      )
+
+      if (!storageService.saveMistakePatterns(updatedMistakePatterns)) {
+        setStorageWarning(
+          'Your practice is continuing, but this missed question could not be saved for review.',
+        )
+      }
     }
 
     if (isSessionComplete(updatedSession)) {

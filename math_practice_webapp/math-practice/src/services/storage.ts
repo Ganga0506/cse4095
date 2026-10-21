@@ -2,12 +2,13 @@ import type {
   AppSettings,
   DifficultyLevel,
   MathOperation,
+  MistakePattern,
   PracticeAttempt,
   PracticeSession,
   SessionLength,
 } from '../types'
 
-export const CURRENT_STORAGE_SCHEMA_VERSION = 1
+export const CURRENT_STORAGE_SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'math-practice:data'
 export const MAX_STORED_SESSIONS = 50
 
@@ -16,6 +17,7 @@ interface StoredAppData {
   settings: AppSettings
   sessions: PracticeSession[]
   attempts: PracticeAttempt[]
+  mistakePatterns: MistakePattern[]
 }
 
 type StoredRecord = Record<string, unknown>
@@ -32,7 +34,9 @@ const validSessionLengths: SessionLength[] = [5, 10, 20, 'continuous']
 
 // Add a migration here whenever the stored schema changes. Each key migrates
 // the matching version to the next version.
-const migrations: Record<number, StorageMigration> = {}
+const migrations: Record<number, StorageMigration> = {
+  1: (data) => ({ ...data, schemaVersion: 2, mistakePatterns: [] }),
+}
 
 export const defaultSettings: AppSettings = {
   soundEffectsEnabled: true,
@@ -50,6 +54,7 @@ function createDefaultData(): StoredAppData {
     settings: { ...defaultSettings, defaultOperations: [] },
     sessions: [],
     attempts: [],
+    mistakePatterns: [],
   }
 }
 
@@ -147,6 +152,25 @@ export function isValidPracticeAttempt(value: unknown): value is PracticeAttempt
   )
 }
 
+export function isValidMistakePattern(value: unknown): value is MistakePattern {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    isNonEmptyString(value.id) &&
+    isOperation(value.operation) &&
+    isFiniteNumber(value.firstOperand) &&
+    isFiniteNumber(value.secondOperand) &&
+    isFiniteNumber(value.correctAnswer) &&
+    isDifficulty(value.difficulty) &&
+    isNonNegativeInteger(value.incorrectCount) &&
+    isNonNegativeInteger(value.similarCorrectCount) &&
+    isValidTimestamp(value.lastIncorrectAt) &&
+    typeof value.mastered === 'boolean'
+  )
+}
+
 function isValidStoredData(value: unknown): value is StoredAppData {
   if (!isRecord(value)) {
     return false
@@ -158,7 +182,9 @@ function isValidStoredData(value: unknown): value is StoredAppData {
     Array.isArray(value.sessions) &&
     value.sessions.every(isValidPracticeSession) &&
     Array.isArray(value.attempts) &&
-    value.attempts.every(isValidPracticeAttempt)
+    value.attempts.every(isValidPracticeAttempt) &&
+    Array.isArray(value.mistakePatterns) &&
+    value.mistakePatterns.every(isValidMistakePattern)
   )
 }
 
@@ -191,7 +217,14 @@ function migrateStoredData(value: unknown): StoredAppData | null {
     migratedData = nextData
   }
 
-  return isValidStoredData(migratedData) ? migratedData : null
+  const recoveredData = {
+    ...migratedData,
+    mistakePatterns: Array.isArray(migratedData.mistakePatterns)
+      ? migratedData.mistakePatterns.filter(isValidMistakePattern)
+      : [],
+  }
+
+  return isValidStoredData(recoveredData) ? recoveredData : null
 }
 
 function getBrowserStorage(): Storage | null {
@@ -275,6 +308,10 @@ export const storageService = {
     return readData(storage).sessions
   },
 
+  loadMistakePatterns(storage?: Storage | null): MistakePattern[] {
+    return readData(storage).mistakePatterns
+  },
+
   loadSettings(storage?: Storage | null): AppSettings {
     return readData(storage).settings
   },
@@ -304,6 +341,18 @@ export const storageService = {
       },
       storage,
     )
+  },
+
+  saveMistakePatterns(
+    mistakePatterns: MistakePattern[],
+    storage?: Storage | null,
+  ): boolean {
+    if (!mistakePatterns.every(isValidMistakePattern)) {
+      return false
+    }
+
+    const data = readData(storage)
+    return writeData({ ...data, mistakePatterns }, storage)
   },
 
   saveSettings(settings: AppSettings, storage?: Storage | null): boolean {
