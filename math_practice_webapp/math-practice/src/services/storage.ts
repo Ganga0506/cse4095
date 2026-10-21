@@ -10,6 +10,7 @@ import type {
   Question,
   SessionLength,
 } from '../types'
+import { logDevelopmentError } from '../utils/developmentLog'
 
 export const CURRENT_STORAGE_SCHEMA_VERSION = 5
 export const STORAGE_KEY = 'math-practice:data'
@@ -273,7 +274,25 @@ function isValidStoredData(value: unknown): value is StoredAppData {
   )
 }
 
-function migrateStoredData(value: unknown): StoredAppData | null {
+interface StorageRecovery {
+  data: StoredAppData
+  shouldRewrite: boolean
+}
+
+function recoverArray<T>(
+  value: unknown,
+  validator: (item: unknown) => item is T,
+  category: string,
+): { items: T[]; wasReset: boolean } {
+  if (Array.isArray(value) && value.every(validator)) {
+    return { items: value as T[], wasReset: false }
+  }
+
+  logDevelopmentError(`Reset invalid stored ${category}.`)
+  return { items: [], wasReset: true }
+}
+
+function recoverStoredData(value: unknown): StorageRecovery | null {
   if (!isRecord(value) || !isNonNegativeInteger(value.schemaVersion)) {
     return null
   }
@@ -283,6 +302,7 @@ function migrateStoredData(value: unknown): StoredAppData | null {
   }
 
   let migratedData = value
+  let shouldRewrite = value.schemaVersion !== CURRENT_STORAGE_SCHEMA_VERSION
 
   for (
     let version = migratedData.schemaVersion as number;
@@ -302,17 +322,58 @@ function migrateStoredData(value: unknown): StoredAppData | null {
     migratedData = nextData
   }
 
-  const recoveredData = {
-    ...migratedData,
-    mistakePatterns: Array.isArray(migratedData.mistakePatterns)
-      ? migratedData.mistakePatterns.filter(isValidMistakePattern)
-      : [],
-    activePractice: isValidActivePracticeState(migratedData.activePractice)
-      ? migratedData.activePractice
-      : null,
+  const settings = isValidSettings(migratedData.settings)
+    ? migratedData.settings
+    : { ...defaultSettings, defaultOperations: [] }
+  if (!isValidSettings(migratedData.settings)) {
+    logDevelopmentError('Reset invalid stored settings.')
+    shouldRewrite = true
   }
 
-  return isValidStoredData(recoveredData) ? recoveredData : null
+  const sessions = recoverArray(
+    migratedData.sessions,
+    isValidPracticeSession,
+    'completed sessions',
+  )
+  const attempts = recoverArray(
+    migratedData.attempts,
+    isValidPracticeAttempt,
+    'practice attempts',
+  )
+  const mistakePatterns = recoverArray(
+    migratedData.mistakePatterns,
+    isValidMistakePattern,
+    'mistake patterns',
+  )
+  const activePractice = isValidActivePracticeState(migratedData.activePractice)
+    ? migratedData.activePractice
+    : null
+  if (migratedData.activePractice !== null && activePractice === null) {
+    logDevelopmentError('Reset an invalid saved active session.')
+    shouldRewrite = true
+  }
+
+  const recoveredData = {
+    ...migratedData,
+    settings,
+    sessions: sessions.items,
+    attempts: attempts.items,
+    mistakePatterns: mistakePatterns.items,
+    activePractice,
+  }
+
+  if (!isValidStoredData(recoveredData)) {
+    return null
+  }
+
+  return {
+    data: recoveredData,
+    shouldRewrite:
+      shouldRewrite ||
+      sessions.wasReset ||
+      attempts.wasReset ||
+      mistakePatterns.wasReset,
+  }
 }
 
 function getBrowserStorage(): Storage | null {
@@ -335,8 +396,19 @@ function readData(storage: Storage | null = getBrowserStorage()): StoredAppData 
     }
 
     const parsedData: unknown = JSON.parse(serializedData)
-    return migrateStoredData(parsedData) ?? createDefaultData()
-  } catch {
+    const recovered = recoverStoredData(parsedData)
+    if (!recovered) {
+      logDevelopmentError('Reset all stored data because its format was unsupported.')
+      return createDefaultData()
+    }
+
+    if (recovered.shouldRewrite) {
+      writeData(recovered.data, storage)
+    }
+
+    return recovered.data
+  } catch (error) {
+    logDevelopmentError('Could not read stored practice data.', error)
     return createDefaultData()
   }
 }
@@ -352,7 +424,8 @@ function writeData(
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(data))
     return true
-  } catch {
+  } catch (error) {
+    logDevelopmentError('Could not save practice data.', error)
     return false
   }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { PageContainer } from '../components/layout/PageContainer'
+import { AppErrorMessage } from '../components/common/AppErrorMessage'
 import type {
   AppSettings,
   DifficultyLevel,
@@ -84,11 +85,7 @@ export function SettingsPage() {
         <p>Your choices save automatically and will be ready for your next session.</p>
       </div>
 
-      {storageWarning && (
-        <p aria-live="polite" className="storage-warning" role="status">
-          {storageWarning}
-        </p>
-      )}
+      {storageWarning && <AppErrorMessage kind="storage" inline />}
 
       <div className="settings-panel">
         <fieldset>

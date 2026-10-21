@@ -8,6 +8,7 @@ import {
   generateMultiplicationQuestion,
   generateQuestion,
   generateSubtractionQuestion,
+  MAX_QUESTION_ATTEMPTS,
 } from './questionGenerator'
 
 afterEach(() => {
@@ -157,5 +158,47 @@ describe('generateQuestion', () => {
 
   it('rejects an empty operation list', () => {
     expect(() => generateQuestion([], 1)).toThrow(/at least one operation/i)
+  })
+
+  it('retries an invalid generated question and logs the development diagnostic', () => {
+    const invalidQuestion: Question = {
+      ...generateAdditionQuestion(1),
+      choices: [3, 3, 4, 5],
+    }
+    const validQuestion = generateAdditionQuestion(1)
+    const questionFactory = vi
+      .fn<(operation: MathOperation, difficulty: DifficultyLevel) => Question>()
+      .mockReturnValueOnce(invalidQuestion)
+      .mockReturnValue(validQuestion)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const question = generateQuestion('addition', 1, questionFactory)
+
+    expect(question).toBe(validQuestion)
+    expect(questionFactory).toHaveBeenCalledTimes(2)
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(/discarded an invalid addition question/i),
+      undefined,
+    )
+  })
+
+  it('uses a valid fallback question after the retry limit', () => {
+    const invalidQuestion: Question = {
+      ...generateAdditionQuestion(1),
+      correctAnswer: Number.NaN,
+    }
+    const questionFactory = vi.fn().mockReturnValue(invalidQuestion)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const question = generateQuestion('division', 4, questionFactory)
+
+    expect(questionFactory).toHaveBeenCalledTimes(MAX_QUESTION_ATTEMPTS)
+    expect(question.operation).toBe('division')
+    expect(question.difficulty).toBe(4)
+    expect(isValidQuestion(question)).toBe(true)
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(/using a fallback division question/i),
+      undefined,
+    )
   })
 })

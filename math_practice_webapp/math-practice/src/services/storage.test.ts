@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type {
   ActivePracticeState,
@@ -92,8 +92,28 @@ function createFullStorage(): Storage {
   } as unknown as Storage
 }
 
+function createValidStoredData() {
+  const settings: AppSettings = {
+    ...defaultSettings,
+    defaultDifficulty: 3,
+    defaultOperations: ['multiplication'],
+  }
+  const session = completeSession(createPracticeSession(configuration))
+  const attempt = createPracticeAttempt(session, question, 6, false)
+
+  return {
+    schemaVersion: CURRENT_STORAGE_SCHEMA_VERSION,
+    settings,
+    sessions: [session],
+    attempts: [attempt],
+    mistakePatterns: [mistakePattern],
+    activePractice: null,
+  }
+}
+
 afterEach(() => {
   localStorage.clear()
+  vi.restoreAllMocks()
 })
 
 describe('storageService', () => {
@@ -145,7 +165,7 @@ describe('storageService', () => {
     expect(storageService.loadAttempts()).toEqual([])
   })
 
-  it('migrates v1 data and filters invalid mistake patterns without losing valid data', () => {
+  it('migrates v1 data and resets an invalid mistake-pattern category', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -169,7 +189,55 @@ describe('storageService', () => {
       }),
     )
     expect(storageService.loadSettings()).toEqual(defaultSettings)
-    expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
+    expect(storageService.loadMistakePatterns()).toEqual([])
+  })
+
+  it('resets only invalid stored categories while preserving valid data', () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const validData = createValidStoredData()
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...validData,
+        settings: { ...validData.settings, defaultDifficulty: 99 },
+      }),
+    )
+    expect(storageService.loadSettings()).toEqual(defaultSettings)
+    expect(storageService.loadAttempts()).toEqual(validData.attempts)
+    expect(storageService.loadCompletedSessions()).toEqual(validData.sessions)
+    expect(storageService.loadMistakePatterns()).toEqual(validData.mistakePatterns)
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...validData, attempts: [{ id: 'incomplete-attempt' }] }),
+    )
+    expect(storageService.loadAttempts()).toEqual([])
+    expect(storageService.loadSettings()).toEqual(validData.settings)
+    expect(storageService.loadCompletedSessions()).toEqual(validData.sessions)
+    expect(storageService.loadMistakePatterns()).toEqual(validData.mistakePatterns)
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...validData, sessions: [{ id: 'incomplete-session' }] }),
+    )
+    expect(storageService.loadCompletedSessions()).toEqual([])
+    expect(storageService.loadSettings()).toEqual(validData.settings)
+    expect(storageService.loadAttempts()).toEqual(validData.attempts)
+    expect(storageService.loadMistakePatterns()).toEqual(validData.mistakePatterns)
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...validData, mistakePatterns: [{ id: 'incomplete-pattern' }] }),
+    )
+    expect(storageService.loadMistakePatterns()).toEqual([])
+    expect(storageService.loadSettings()).toEqual(validData.settings)
+    expect(storageService.loadAttempts()).toEqual(validData.attempts)
+    expect(storageService.loadCompletedSessions()).toEqual(validData.sessions)
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(/reset invalid stored settings/i),
+      undefined,
+    )
   })
 
   it('migrates the former mastery threshold to the new default of three', () => {

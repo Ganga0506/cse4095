@@ -820,6 +820,49 @@ h2 {
   text-align: center;
 }
 
+.app-error-message {
+  background: rgb(255 255 255 / 88%);
+  border: 2px solid #d99d1a;
+  border-radius: 1.25rem;
+  box-shadow: 0 0.6rem 1.5rem rgb(56 72 120 / 12%);
+  margin: 0 auto;
+  max-width: 42rem;
+  padding: clamp(1.5rem, 5vw, 2.5rem);
+  text-align: center;
+}
+
+.app-error-message h1,
+.app-error-message h2 {
+  font-size: clamp(1.6rem, 5vw, 2.5rem);
+}
+
+.app-error-message > p:not(.eyebrow) {
+  color: #466181;
+  line-height: 1.5;
+  margin: 0 auto 1.5rem;
+  max-width: 34rem;
+}
+
+.app-error-message--inline {
+  margin: 1rem auto;
+  max-width: 42rem;
+  padding: 1rem 1.25rem;
+}
+
+.app-error-message--inline .eyebrow {
+  font-size: 0.72rem;
+  margin-bottom: 0.35rem;
+}
+
+.app-error-message--inline h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.app-error-message--inline > p:not(.eyebrow) {
+  margin-bottom: 0;
+}
+
 .leave-session-dialog {
   align-items: center;
   background: rgb(23 50 92 / 52%);

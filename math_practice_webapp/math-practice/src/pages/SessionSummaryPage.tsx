@@ -1,5 +1,6 @@
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 
+import { AppErrorMessage } from '../components/common/AppErrorMessage'
 import { PageContainer } from '../components/layout/PageContainer'
 import { isValidPracticeSetup } from '../services/practiceSession'
 import type {
@@ -39,7 +40,11 @@ export function SessionSummaryPage() {
   const state = location.state as SessionSummaryLocationState | null
 
   if (!isValidSummaryState(state)) {
-    return <Navigate replace to="/practice/setup" />
+    return (
+      <PageContainer className="summary-page">
+        <AppErrorMessage kind="missing-session" />
+      </PageContainer>
+    )
   }
 
   const { attempts, configuration, session } = state

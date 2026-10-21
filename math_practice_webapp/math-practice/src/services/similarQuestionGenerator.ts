@@ -1,6 +1,7 @@
 import type { DifficultyLevel, MathOperation, MistakePattern, Question } from '../types'
 
-import { createQuestionFromOperands } from './questionGenerator'
+import { createQuestionFromOperands, generateQuestion } from './questionGenerator'
+import { logDevelopmentError } from '../utils/developmentLog'
 import { randomInt } from '../utils/math'
 import { isValidQuestion } from '../utils/validation'
 
@@ -330,16 +331,21 @@ function createReviewQuestion(
     return null
   }
 
-  const question = createQuestionFromOperands(
-    operands.operation,
-    operands.firstOperand,
-    operands.secondOperand,
-    pattern.difficulty,
-    'mistake-review',
-    pattern.id,
-  )
+  try {
+    const question = createQuestionFromOperands(
+      operands.operation,
+      operands.firstOperand,
+      operands.secondOperand,
+      pattern.difficulty,
+      'mistake-review',
+      pattern.id,
+    )
 
-  return isValidQuestion(question) ? question : null
+    return isValidQuestion(question) ? question : null
+  } catch (error) {
+    logDevelopmentError('Could not create a similar review question.', error)
+    return null
+  }
 }
 
 export function generateSimilarQuestion(
@@ -365,5 +371,13 @@ export function generateSimilarQuestion(
     }
   }
 
-  throw new Error('Unable to generate a valid similar question. Please try again.')
+  logDevelopmentError(
+    `Using a fallback mistake-review question after ${MAX_GENERATION_ATTEMPTS} failed attempts.`,
+  )
+  const fallback = generateQuestion(pattern.operation, pattern.difficulty)
+  return {
+    ...fallback,
+    source: 'mistake-review',
+    mistakePatternId: pattern.id,
+  }
 }

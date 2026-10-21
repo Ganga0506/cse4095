@@ -72,19 +72,24 @@ afterEach(() => {
 })
 
 describe('PracticeSessionPage', () => {
-  it('redirects to setup when session setup data is missing', async () => {
+  it('shows a friendly recovery message when session setup data is missing', async () => {
     renderSession()
 
     expect(
-      await screen.findByRole('heading', { name: /let's make your math plan/i }),
+      await screen.findByRole('heading', {
+        name: /let’s start a new practice session/i,
+      }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /return home/i })).toBeInTheDocument()
   })
 
-  it('redirects to setup when a review session has no active mistake patterns', async () => {
+  it('shows a friendly recovery message when a review session has no active mistakes', async () => {
     renderSession({ ...fiveQuestionConfiguration, mode: 'mistake-review' })
 
     expect(
-      await screen.findByRole('heading', { name: /let's make your math plan/i }),
+      await screen.findByRole('heading', {
+        name: /let’s start a new practice session/i,
+      }),
     ).toBeInTheDocument()
   })
 

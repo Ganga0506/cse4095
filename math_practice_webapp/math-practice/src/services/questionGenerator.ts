@@ -2,10 +2,11 @@ import type { DifficultyLevel, MathOperation, Question, QuestionSource } from '.
 
 import { generateAnswerChoices } from './answerChoices'
 import { createId } from '../utils/ids'
+import { logDevelopmentError } from '../utils/developmentLog'
 import { randomInt } from '../utils/math'
 import { isValidQuestion } from '../utils/validation'
 
-const MAX_QUESTION_ATTEMPTS = 3
+export const MAX_QUESTION_ATTEMPTS = 3
 
 interface NumberRange {
   min: number
@@ -178,18 +179,68 @@ function createQuestionForOperation(
   }
 }
 
+type QuestionFactory = (
+  operation: MathOperation,
+  difficulty: DifficultyLevel,
+) => Question
+
+function createFallbackQuestion(
+  operation: MathOperation,
+  difficulty: DifficultyLevel,
+): Question {
+  const operands: Record<MathOperation, readonly [number, number]> = {
+    addition: [2, 3],
+    subtraction: [5, 2],
+    multiplication: [2, 3],
+    division: [6, 2],
+  }
+  const [firstOperand, secondOperand] = operands[operation]
+  const correctAnswer = calculateAnswer(operation, firstOperand, secondOperand)
+  const choices =
+    correctAnswer === 0
+      ? [0, 1, 2, 3]
+      : [correctAnswer, correctAnswer - 1, correctAnswer + 1, correctAnswer + 2]
+
+  return {
+    id: createId('question'),
+    operation,
+    firstOperand,
+    secondOperand,
+    displayText: `${firstOperand} ${operationSymbols[operation]} ${secondOperand} = ?`,
+    correctAnswer,
+    choices,
+    difficulty,
+    source: 'regular',
+  }
+}
+
 export function generateQuestion(
   operationOrOperations: MathOperation | readonly MathOperation[],
   difficulty: DifficultyLevel,
+  questionFactory: QuestionFactory = createQuestionForOperation,
 ): Question {
   const operation = selectOperation(operationOrOperations)
 
   for (let attempt = 0; attempt < MAX_QUESTION_ATTEMPTS; attempt += 1) {
-    const question = createQuestionForOperation(operation, difficulty)
-    if (isValidQuestion(question)) {
-      return question
+    try {
+      const question = questionFactory(operation, difficulty)
+      if (isValidQuestion(question)) {
+        return question
+      }
+
+      logDevelopmentError(
+        `Discarded an invalid ${operation} question on generation attempt ${attempt + 1}.`,
+      )
+    } catch (error) {
+      logDevelopmentError(
+        `${operation} question generation failed on attempt ${attempt + 1}.`,
+        error,
+      )
     }
   }
 
-  throw new Error('Unable to generate a valid math question. Please try again.')
+  logDevelopmentError(
+    `Using a fallback ${operation} question after ${MAX_QUESTION_ATTEMPTS} failed attempts.`,
+  )
+  return createFallbackQuestion(operation, difficulty)
 }

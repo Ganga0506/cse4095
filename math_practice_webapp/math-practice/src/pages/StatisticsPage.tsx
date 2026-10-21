@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { PageContainer } from '../components/layout/PageContainer'
+import { AppErrorMessage } from '../components/common/AppErrorMessage'
 import type {
   DifficultyLevel,
   MathOperation,
@@ -138,11 +139,7 @@ export function StatisticsPage() {
         </button>
       </div>
 
-      {storageWarning && (
-        <p aria-live="polite" className="storage-warning" role="status">
-          {storageWarning}
-        </p>
-      )}
+      {storageWarning && <AppErrorMessage kind="storage" inline />}
 
       {!hasStatistics && (
         <section className="empty-state">

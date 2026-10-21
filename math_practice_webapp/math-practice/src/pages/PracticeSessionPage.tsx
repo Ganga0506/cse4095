@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useBeforeUnload, useLocation, useNavigate } from 'react-router'
+import { useBeforeUnload, useLocation, useNavigate } from 'react-router'
 
 import {
   QuestionCard,
   type SelfReportedResult,
 } from '../components/practice/QuestionCard'
 import { ProgressBar } from '../components/practice/ProgressBar'
+import { AppErrorMessage } from '../components/common/AppErrorMessage'
 import { PageContainer } from '../components/layout/PageContainer'
 import { usePracticeSession } from '../hooks/usePracticeSession'
 import { getActiveMistakePatterns } from '../services/mistakePatterns'
@@ -27,7 +28,11 @@ export function PracticeSessionPage() {
   const configuration = state?.configuration ?? restoredPractice?.configuration
 
   if (!isValidPracticeSetup(configuration)) {
-    return <Navigate replace to="/practice/setup" />
+    return (
+      <PageContainer>
+        <AppErrorMessage kind="missing-session" />
+      </PageContainer>
+    )
   }
 
   if (
@@ -35,7 +40,11 @@ export function PracticeSessionPage() {
     !restoredPractice &&
     getActiveMistakePatterns(storageService.loadMistakePatterns()).length === 0
   ) {
-    return <Navigate replace to="/practice/setup" />
+    return (
+      <PageContainer>
+        <AppErrorMessage kind="missing-session" />
+      </PageContainer>
+    )
   }
 
   return (
@@ -246,11 +255,7 @@ function ActivePracticeSession({
         </p>
       )}
 
-      {storageWarning && (
-        <p aria-live="polite" className="storage-warning" role="status">
-          {storageWarning}
-        </p>
-      )}
+      {storageWarning && <AppErrorMessage kind="storage" inline />}
 
       {isContinuous && (
         <button
