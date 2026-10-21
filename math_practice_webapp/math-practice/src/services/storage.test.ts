@@ -4,6 +4,7 @@ import type {
   ActivePracticeState,
   AppSettings,
   MistakePattern,
+  PracticeAttempt,
   PracticeSetupConfig,
   Question,
 } from '../types'
@@ -11,9 +12,11 @@ import type {
 import {
   CURRENT_STORAGE_SCHEMA_VERSION,
   defaultSettings,
+  MAX_STORED_ATTEMPTS,
   storageService,
   STORAGE_KEY,
 } from './storage'
+import { calculateStatistics, mergeStatistics } from './statistics'
 import {
   completeSession,
   createPracticeAttempt,
@@ -106,8 +109,53 @@ function createValidStoredData() {
     settings,
     sessions: [session],
     attempts: [attempt],
+    archivedAttemptStatistics: {
+      appStatistics: {
+        attempted: 0,
+        correct: 0,
+        incorrect: 0,
+        byOperation: {
+          addition: { attempted: 0, correct: 0, incorrect: 0 },
+          subtraction: { attempted: 0, correct: 0, incorrect: 0 },
+          multiplication: { attempted: 0, correct: 0, incorrect: 0 },
+          division: { attempted: 0, correct: 0, incorrect: 0 },
+        },
+        byDifficulty: {
+          1: { attempted: 0, correct: 0, incorrect: 0 },
+          2: { attempted: 0, correct: 0, incorrect: 0 },
+          3: { attempted: 0, correct: 0, incorrect: 0 },
+          4: { attempted: 0, correct: 0, incorrect: 0 },
+        },
+      },
+      mistakeReviewAttempted: 0,
+      mistakeReviewCorrect: 0,
+    },
     mistakePatterns: [mistakePattern],
     activePractice: null,
+  }
+}
+
+function createLargeAttempt(index: number): PracticeAttempt {
+  const operation = ['addition', 'subtraction', 'multiplication', 'division'][
+    index % 4
+  ] as PracticeAttempt['operation']
+  const source = index % 5 === 0 ? 'mistake-review' : 'regular'
+  const selfReportedCorrect = index % 3 !== 0
+
+  return {
+    id: `large-attempt-${index}`,
+    questionId: `large-question-${index}`,
+    operation,
+    firstOperand: 10 + (index % 10),
+    secondOperand: 2 + (index % 8),
+    correctAnswer: 12 + (index % 18),
+    selectedAnswer: selfReportedCorrect ? 12 + (index % 18) : 11 + (index % 18),
+    selfReportedCorrect,
+    difficulty: ((index % 4) + 1) as 1 | 2 | 3 | 4,
+    source,
+    ...(source === 'mistake-review' ? { mistakePatternId: 'mistake-1' } : {}),
+    attemptedAt: new Date(1_700_000_000_000 + index * 1_000).toISOString(),
+    sessionId: `large-session-${Math.floor(index / 10)}`,
   }
 }
 
@@ -320,6 +368,55 @@ describe('storageService', () => {
       sessionId: session.id,
       attemptedAt: expect.any(String),
     })
+  })
+
+  it('keeps only the most recent detailed session summaries', () => {
+    const completedSessions = Array.from({ length: 30 }, () =>
+      completeSession(createPracticeSession(configuration)),
+    )
+
+    completedSessions.forEach((session) => {
+      expect(storageService.saveCompletedSession(session)).toBe(true)
+    })
+
+    expect(storageService.loadCompletedSessions()).toHaveLength(25)
+    expect(storageService.loadCompletedSessions()[0]?.id).toBe(completedSessions[5]?.id)
+  })
+
+  it('archives a several-thousand-attempt history while preserving aggregate totals', () => {
+    const largeHistory = Array.from({ length: 5_000 }, (_, index) =>
+      createLargeAttempt(index),
+    )
+    const finalAttempt = createLargeAttempt(5_000)
+
+    storageService.saveSettings(defaultSettings)
+    const storedData = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<
+      string,
+      unknown
+    >
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...storedData, attempts: largeHistory }),
+    )
+    const usageBeforeArchiving = storageService.getStorageUsage()
+
+    expect(storageService.saveAttempt(finalAttempt)).toBe(true)
+
+    const detailedAttempts = storageService.loadAttempts()
+    const archivedStatistics = storageService.loadArchivedAttemptStatistics()
+    const combinedStatistics = mergeStatistics(
+      archivedStatistics.appStatistics,
+      calculateStatistics(detailedAttempts),
+    )
+    const usageAfterArchiving = storageService.getStorageUsage()
+
+    expect(detailedAttempts).toHaveLength(MAX_STORED_ATTEMPTS)
+    expect(combinedStatistics).toMatchObject({
+      attempted: 5_001,
+      correct: largeHistory.filter((attempt) => attempt.selfReportedCorrect).length + 1,
+    })
+    expect(archivedStatistics.mistakeReviewAttempted).toBeGreaterThan(0)
+    expect(usageAfterArchiving.bytes).toBeLessThan(usageBeforeArchiving.bytes)
   })
 
   it('resets statistics without changing settings, then clears all app data', () => {

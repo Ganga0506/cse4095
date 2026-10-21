@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 
 import { PageContainer } from '../components/layout/PageContainer'
 import { AppErrorMessage } from '../components/common/AppErrorMessage'
@@ -13,6 +13,7 @@ import {
   calculateAccuracy,
   calculateMistakeStatistics,
   calculateStatistics,
+  mergeStatistics,
 } from '../services/statistics'
 
 const operations: Array<{ value: MathOperation; label: string }> = [
@@ -48,7 +49,24 @@ function formatFact(pattern: MistakePattern): string {
   return `${pattern.firstOperand} ${operationSymbols[pattern.operation]} ${pattern.secondOperand} = ${pattern.correctAnswer}`
 }
 
-function StatisticsCard({
+function loadStatisticsPageData() {
+  return {
+    archivedAttemptStatistics: storageService.loadArchivedAttemptStatistics(),
+    attempts: storageService.loadAttempts(),
+    mistakePatterns: storageService.loadMistakePatterns(),
+    sessions: storageService
+      .loadCompletedSessions()
+      .slice()
+      .sort(
+        (first, second) =>
+          Date.parse(second.completedAt ?? second.startedAt) -
+          Date.parse(first.completedAt ?? first.startedAt),
+      ),
+    settings: storageService.loadSettings(),
+  }
+}
+
+const StatisticsCard = memo(function StatisticsCard({
   label,
   statistics,
 }: {
@@ -77,27 +95,33 @@ function StatisticsCard({
       </dl>
     </article>
   )
-}
+})
 
 export function StatisticsPage() {
-  const [, setRevision] = useState(0)
+  const [storedData, setStoredData] = useState(loadStatisticsPageData)
   const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [mistakeView, setMistakeView] = useState<'active' | 'mastered'>('active')
-  const attempts = storageService.loadAttempts()
-  const mistakePatterns = storageService.loadMistakePatterns()
-  const settings = storageService.loadSettings()
-  const sessions = storageService
-    .loadCompletedSessions()
-    .slice()
-    .sort(
-      (first, second) =>
-        Date.parse(second.completedAt ?? second.startedAt) -
-        Date.parse(first.completedAt ?? first.startedAt),
-    )
-  const statistics = calculateStatistics(attempts)
-  const mistakeStatistics = calculateMistakeStatistics(mistakePatterns, attempts)
+  const { archivedAttemptStatistics, attempts, mistakePatterns, sessions, settings } =
+    storedData
+  const statistics = useMemo(
+    () =>
+      mergeStatistics(
+        archivedAttemptStatistics.appStatistics,
+        calculateStatistics(attempts),
+      ),
+    [archivedAttemptStatistics, attempts],
+  )
+  const mistakeStatistics = useMemo(
+    () =>
+      calculateMistakeStatistics(
+        mistakePatterns,
+        attempts,
+        archivedAttemptStatistics,
+      ),
+    [archivedAttemptStatistics, attempts, mistakePatterns],
+  )
   const overallAccuracy = calculateAccuracy(statistics.correct, statistics.attempted)
-  const hasStatistics = attempts.length > 0 || sessions.length > 0
+  const hasStatistics = statistics.attempted > 0 || sessions.length > 0
   const hasMistakes = mistakePatterns.length > 0
   const displayedPatterns = mistakeStatistics.sortedPatterns.filter((pattern) =>
     mistakeView === 'active' ? !pattern.mastered : pattern.mastered,
@@ -114,7 +138,7 @@ export function StatisticsPage() {
 
     if (storageService.clearStatistics()) {
       setStorageWarning(null)
-      setRevision((currentRevision) => currentRevision + 1)
+      setStoredData(loadStatisticsPageData())
       return
     }
 

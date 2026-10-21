@@ -15,6 +15,7 @@ export type {
 } from './session'
 export type { AppSettings } from './settings'
 export type {
+  ArchivedAttemptStatistics,
   AppStatistics,
   MistakeStatistics,
   OperationStatistics,

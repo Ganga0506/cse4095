@@ -15,6 +15,13 @@ export interface AppStatistics {
   byDifficulty: Record<DifficultyLevel, OperationStatistics>
 }
 
+/** Aggregate totals for detailed attempts that have aged out of local storage. */
+export interface ArchivedAttemptStatistics {
+  appStatistics: AppStatistics
+  mistakeReviewAttempted: number
+  mistakeReviewCorrect: number
+}
+
 export interface MistakeStatistics {
   activePatternCount: number
   masteredPatternCount: number

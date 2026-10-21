@@ -1,5 +1,6 @@
 import type {
   ActivePracticeState,
+  ArchivedAttemptStatistics,
   AppSettings,
   DifficultyLevel,
   MathOperation,
@@ -11,16 +12,23 @@ import type {
   SessionLength,
 } from '../types'
 import { logDevelopmentError } from '../utils/developmentLog'
+import {
+  createEmptyArchivedAttemptStatistics,
+  mergeArchivedAttemptStatistics,
+  summarizeAttempts,
+} from './statistics'
 
-export const CURRENT_STORAGE_SCHEMA_VERSION = 5
+export const CURRENT_STORAGE_SCHEMA_VERSION = 6
 export const STORAGE_KEY = 'math-practice:data'
-export const MAX_STORED_SESSIONS = 50
+export const MAX_STORED_SESSIONS = 25
+export const MAX_STORED_ATTEMPTS = 1_000
 
 interface StoredAppData {
   schemaVersion: number
   settings: AppSettings
   sessions: PracticeSession[]
   attempts: PracticeAttempt[]
+  archivedAttemptStatistics: ArchivedAttemptStatistics
   mistakePatterns: MistakePattern[]
   activePractice: ActivePracticeState | null
 }
@@ -56,6 +64,11 @@ const migrations: Record<number, StorageMigration> = {
       : data.settings,
   }),
   4: (data) => ({ ...data, schemaVersion: 5, activePractice: null }),
+  5: (data) => ({
+    ...data,
+    schemaVersion: 6,
+    archivedAttemptStatistics: createEmptyArchivedAttemptStatistics(),
+  }),
 }
 
 export const defaultSettings: AppSettings = {
@@ -75,6 +88,7 @@ function createDefaultData(): StoredAppData {
     settings: { ...defaultSettings, defaultOperations: [] },
     sessions: [],
     attempts: [],
+    archivedAttemptStatistics: createEmptyArchivedAttemptStatistics(),
     mistakePatterns: [],
     activePractice: null,
   }
@@ -196,6 +210,45 @@ export function isValidMistakePattern(value: unknown): value is MistakePattern {
   )
 }
 
+function isValidOperationStatistics(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    isNonNegativeInteger(value.attempted) &&
+    isNonNegativeInteger(value.correct) &&
+    isNonNegativeInteger(value.incorrect) &&
+    value.attempted === value.correct + value.incorrect
+  )
+}
+
+export function isValidArchivedAttemptStatistics(
+  value: unknown,
+): value is ArchivedAttemptStatistics {
+  if (!isRecord(value) || !isRecord(value.appStatistics)) {
+    return false
+  }
+
+  const statistics = value.appStatistics
+  const operationStatistics = statistics.byOperation
+  const difficultyStatistics = statistics.byDifficulty
+  return (
+    isNonNegativeInteger(statistics.attempted) &&
+    isNonNegativeInteger(statistics.correct) &&
+    isNonNegativeInteger(statistics.incorrect) &&
+    statistics.attempted === statistics.correct + statistics.incorrect &&
+    isRecord(operationStatistics) &&
+    validOperations.every((operation) =>
+      isValidOperationStatistics(operationStatistics[operation]),
+    ) &&
+    isRecord(difficultyStatistics) &&
+    validDifficulties.every((difficulty) =>
+      isValidOperationStatistics(difficultyStatistics[difficulty]),
+    ) &&
+    isNonNegativeInteger(value.mistakeReviewAttempted) &&
+    isNonNegativeInteger(value.mistakeReviewCorrect) &&
+    value.mistakeReviewCorrect <= value.mistakeReviewAttempted
+  )
+}
+
 function isValidPracticeSetup(value: unknown): value is PracticeSetupConfig {
   if (!isRecord(value)) {
     return false
@@ -268,6 +321,7 @@ function isValidStoredData(value: unknown): value is StoredAppData {
     value.sessions.every(isValidPracticeSession) &&
     Array.isArray(value.attempts) &&
     value.attempts.every(isValidPracticeAttempt) &&
+    isValidArchivedAttemptStatistics(value.archivedAttemptStatistics) &&
     Array.isArray(value.mistakePatterns) &&
     value.mistakePatterns.every(isValidMistakePattern) &&
     (value.activePractice === null || isValidActivePracticeState(value.activePractice))
@@ -340,6 +394,18 @@ function recoverStoredData(value: unknown): StorageRecovery | null {
     isValidPracticeAttempt,
     'practice attempts',
   )
+  const archivedAttemptStatistics = isValidArchivedAttemptStatistics(
+    migratedData.archivedAttemptStatistics,
+  )
+    ? migratedData.archivedAttemptStatistics
+    : createEmptyArchivedAttemptStatistics()
+  const hasValidArchivedAttemptStatistics = isValidArchivedAttemptStatistics(
+    migratedData.archivedAttemptStatistics,
+  )
+  if (!hasValidArchivedAttemptStatistics) {
+    logDevelopmentError('Reset invalid archived attempt statistics.')
+    shouldRewrite = true
+  }
   const mistakePatterns = recoverArray(
     migratedData.mistakePatterns,
     isValidMistakePattern,
@@ -358,6 +424,7 @@ function recoverStoredData(value: unknown): StorageRecovery | null {
     settings,
     sessions: sessions.items,
     attempts: attempts.items,
+    archivedAttemptStatistics,
     mistakePatterns: mistakePatterns.items,
     activePractice,
   }
@@ -372,6 +439,7 @@ function recoverStoredData(value: unknown): StorageRecovery | null {
       shouldRewrite ||
       sessions.wasReset ||
       attempts.wasReset ||
+      !hasValidArchivedAttemptStatistics ||
       mistakePatterns.wasReset,
   }
 }
@@ -443,6 +511,24 @@ function replaceById<T extends { id: string }>(items: T[], item: T): T[] {
 }
 
 export const storageService = {
+  getStorageUsage(storage: Storage | null = getBrowserStorage()): {
+    bytes: number
+    kilobytes: number
+  } {
+    if (!storage) {
+      return { bytes: 0, kilobytes: 0 }
+    }
+
+    try {
+      const data = storage.getItem(STORAGE_KEY) ?? ''
+      const bytes = new Blob([data]).size
+      return { bytes, kilobytes: Number((bytes / 1024).toFixed(2)) }
+    } catch (error) {
+      logDevelopmentError('Could not measure stored practice data.', error)
+      return { bytes: 0, kilobytes: 0 }
+    }
+  },
+
   clear(storage: Storage | null = getBrowserStorage()): boolean {
     if (!storage) {
       return false
@@ -458,11 +544,25 @@ export const storageService = {
 
   clearStatistics(storage?: Storage | null): boolean {
     const data = readData(storage)
-    return writeData({ ...data, attempts: [], sessions: [] }, storage)
+    return writeData(
+      {
+        ...data,
+        attempts: [],
+        archivedAttemptStatistics: createEmptyArchivedAttemptStatistics(),
+        sessions: [],
+      },
+      storage,
+    )
   },
 
   loadAttempts(storage?: Storage | null): PracticeAttempt[] {
     return readData(storage).attempts
+  },
+
+  loadArchivedAttemptStatistics(
+    storage?: Storage | null,
+  ): ArchivedAttemptStatistics {
+    return readData(storage).archivedAttemptStatistics
   },
 
   loadActivePractice(storage?: Storage | null): ActivePracticeState | null {
@@ -487,8 +587,21 @@ export const storageService = {
     }
 
     const data = readData(storage)
+    const updatedAttempts = replaceById(data.attempts, attempt)
+    const overflowCount = Math.max(0, updatedAttempts.length - MAX_STORED_ATTEMPTS)
+    const archivedAttempts = updatedAttempts.slice(0, overflowCount)
     return writeData(
-      { ...data, attempts: replaceById(data.attempts, attempt) },
+      {
+        ...data,
+        attempts: updatedAttempts.slice(overflowCount),
+        archivedAttemptStatistics:
+          archivedAttempts.length > 0
+            ? mergeArchivedAttemptStatistics(
+                data.archivedAttemptStatistics,
+                summarizeAttempts(archivedAttempts),
+              )
+            : data.archivedAttemptStatistics,
+      },
       storage,
     )
   },

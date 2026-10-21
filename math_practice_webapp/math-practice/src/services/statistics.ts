@@ -1,4 +1,5 @@
 import type {
+  ArchivedAttemptStatistics,
   AppStatistics,
   DifficultyLevel,
   MathOperation,
@@ -20,7 +21,7 @@ function emptyTotals(): OperationStatistics {
   return { attempted: 0, correct: 0, incorrect: 0 }
 }
 
-function createEmptyStatistics(): AppStatistics {
+export function createEmptyStatistics(): AppStatistics {
   return {
     attempted: 0,
     correct: 0,
@@ -31,6 +32,14 @@ function createEmptyStatistics(): AppStatistics {
     byDifficulty: Object.fromEntries(
       difficulties.map((difficulty) => [difficulty, emptyTotals()]),
     ) as Record<DifficultyLevel, OperationStatistics>,
+  }
+}
+
+export function createEmptyArchivedAttemptStatistics(): ArchivedAttemptStatistics {
+  return {
+    appStatistics: createEmptyStatistics(),
+    mistakeReviewAttempted: 0,
+    mistakeReviewCorrect: 0,
   }
 }
 
@@ -55,6 +64,67 @@ export function calculateStatistics(attempts: PracticeAttempt[]): AppStatistics 
   }, createEmptyStatistics())
 }
 
+export function mergeStatistics(
+  first: AppStatistics,
+  second: AppStatistics,
+): AppStatistics {
+  const result = createEmptyStatistics()
+
+  result.attempted = first.attempted + second.attempted
+  result.correct = first.correct + second.correct
+  result.incorrect = first.incorrect + second.incorrect
+
+  for (const operation of operations) {
+    result.byOperation[operation] = {
+      attempted:
+        first.byOperation[operation].attempted + second.byOperation[operation].attempted,
+      correct: first.byOperation[operation].correct + second.byOperation[operation].correct,
+      incorrect:
+        first.byOperation[operation].incorrect + second.byOperation[operation].incorrect,
+    }
+  }
+
+  for (const difficulty of difficulties) {
+    result.byDifficulty[difficulty] = {
+      attempted:
+        first.byDifficulty[difficulty].attempted + second.byDifficulty[difficulty].attempted,
+      correct: first.byDifficulty[difficulty].correct + second.byDifficulty[difficulty].correct,
+      incorrect:
+        first.byDifficulty[difficulty].incorrect + second.byDifficulty[difficulty].incorrect,
+    }
+  }
+
+  return result
+}
+
+export function summarizeAttempts(
+  attempts: PracticeAttempt[],
+): ArchivedAttemptStatistics {
+  const reviewAttempts = attempts.filter(
+    (attempt) => attempt.source === 'mistake-review',
+  )
+
+  return {
+    appStatistics: calculateStatistics(attempts),
+    mistakeReviewAttempted: reviewAttempts.length,
+    mistakeReviewCorrect: reviewAttempts.filter(
+      (attempt) => attempt.selfReportedCorrect,
+    ).length,
+  }
+}
+
+export function mergeArchivedAttemptStatistics(
+  first: ArchivedAttemptStatistics,
+  second: ArchivedAttemptStatistics,
+): ArchivedAttemptStatistics {
+  return {
+    appStatistics: mergeStatistics(first.appStatistics, second.appStatistics),
+    mistakeReviewAttempted:
+      first.mistakeReviewAttempted + second.mistakeReviewAttempted,
+    mistakeReviewCorrect: first.mistakeReviewCorrect + second.mistakeReviewCorrect,
+  }
+}
+
 export function sortMistakePatterns(patterns: MistakePattern[]): MistakePattern[] {
   return [...patterns].sort((first, second) => {
     if (second.incorrectCount !== first.incorrectCount) {
@@ -74,6 +144,7 @@ export function sortMistakePatterns(patterns: MistakePattern[]): MistakePattern[
 export function calculateMistakeStatistics(
   patterns: MistakePattern[],
   attempts: PracticeAttempt[],
+  archivedAttempts: ArchivedAttemptStatistics = createEmptyArchivedAttemptStatistics(),
 ): MistakeStatistics {
   const sortedPatterns = sortMistakePatterns(patterns)
   const reviewAttempts = attempts.filter(
@@ -103,10 +174,11 @@ export function calculateMistakeStatistics(
   return {
     activePatternCount: patterns.filter((pattern) => !pattern.mastered).length,
     masteredPatternCount: patterns.filter((pattern) => pattern.mastered).length,
-    similarQuestionsPracticed: reviewAttempts.length,
-    reviewQuestionsCorrect: reviewAttempts.filter(
-      (attempt) => attempt.selfReportedCorrect,
-    ).length,
+    similarQuestionsPracticed:
+      archivedAttempts.mistakeReviewAttempted + reviewAttempts.length,
+    reviewQuestionsCorrect:
+      archivedAttempts.mistakeReviewCorrect +
+      reviewAttempts.filter((attempt) => attempt.selfReportedCorrect).length,
     mostMissedFacts:
       highestFactMisses === 0
         ? []

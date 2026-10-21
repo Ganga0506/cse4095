@@ -6,7 +6,10 @@ import {
   calculateAccuracy,
   calculateMistakeStatistics,
   calculateStatistics,
+  mergeArchivedAttemptStatistics,
+  mergeStatistics,
   sortMistakePatterns,
+  summarizeAttempts,
 } from './statistics'
 
 function createAttempt(overrides: Partial<PracticeAttempt> = {}): PracticeAttempt {
@@ -135,6 +138,67 @@ describe('statistics calculations', () => {
       correct: 0,
       incorrect: 1,
     })
+  })
+
+  it('merges archived and recent attempts without losing aggregate statistics', () => {
+    const archivedAttempts = [
+      createAttempt({ id: 'archived-1', selfReportedCorrect: true }),
+      createAttempt({
+        id: 'archived-2',
+        operation: 'division',
+        difficulty: 4,
+        selfReportedCorrect: false,
+        source: 'mistake-review',
+      }),
+    ]
+    const recentAttempts = [
+      createAttempt({
+        id: 'recent-1',
+        operation: 'multiplication',
+        difficulty: 3,
+        source: 'mistake-review',
+      }),
+    ]
+
+    const archived = summarizeAttempts(archivedAttempts)
+    const recent = summarizeAttempts(recentAttempts)
+    const mergedArchive = mergeArchivedAttemptStatistics(archived, recent)
+    const mergedStatistics = mergeStatistics(
+      archived.appStatistics,
+      recent.appStatistics,
+    )
+
+    expect(mergedArchive.appStatistics).toEqual(mergedStatistics)
+    expect(mergedStatistics).toMatchObject({
+      attempted: 3,
+      correct: 2,
+      incorrect: 1,
+    })
+    expect(mergedArchive).toMatchObject({
+      mistakeReviewAttempted: 2,
+      mistakeReviewCorrect: 1,
+    })
+  })
+
+  it('calculates aggregate statistics for five thousand attempts', () => {
+    const attempts = Array.from({ length: 5_000 }, (_, index) =>
+      createAttempt({
+        id: `attempt-${index}`,
+        operation: ['addition', 'subtraction', 'multiplication', 'division'][
+          index % 4
+        ] as PracticeAttempt['operation'],
+        difficulty: ((index % 4) + 1) as 1 | 2 | 3 | 4,
+        selfReportedCorrect: index % 3 !== 0,
+      }),
+    )
+    const startedAt = performance.now()
+    const statistics = calculateStatistics(attempts)
+    const elapsedMilliseconds = performance.now() - startedAt
+
+    expect(statistics.attempted).toBe(5_000)
+    expect(statistics.correct + statistics.incorrect).toBe(5_000)
+    // A generous guard keeps this useful on slower classroom devices.
+    expect(elapsedMilliseconds).toBeLessThan(1_000)
   })
 })
 
