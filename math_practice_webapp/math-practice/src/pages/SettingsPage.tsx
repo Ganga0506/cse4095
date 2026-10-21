@@ -134,6 +134,19 @@ export function SettingsPage() {
               </small>
             </span>
           </label>
+          <label className="settings-toggle">
+            <input
+              checked={settings.feedbackEnabled}
+              onChange={(event) =>
+                updateSettings({ feedbackEnabled: event.target.checked })
+              }
+              type="checkbox"
+            />
+            <span>
+              <strong>Encouraging feedback</strong>
+              <small>Show short, kind messages after each answer.</small>
+            </span>
+          </label>
         </fieldset>
 
         <fieldset>

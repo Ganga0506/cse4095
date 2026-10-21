@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
 
 import {
@@ -10,6 +10,7 @@ import { PageContainer } from '../components/layout/PageContainer'
 import { usePracticeSession } from '../hooks/usePracticeSession'
 import { getActiveMistakePatterns } from '../services/mistakePatterns'
 import { isValidPracticeSetup } from '../services/practiceSession'
+import { getFeedbackMessage } from '../services/feedback'
 import { storageService } from '../services/storage'
 import type { PracticeSetupConfig } from '../types'
 
@@ -44,6 +45,10 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
   const [animationEnabled, setAnimationEnabled] = useState(
     () => storageService.loadSettings().cardAnimationEnabled,
   )
+  const [feedbackEnabled] = useState(
+    () => storageService.loadSettings().feedbackEnabled,
+  )
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const {
     attempts,
     currentQuestion,
@@ -57,6 +62,15 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
     session.sessionLength === 'continuous' ? undefined : session.sessionLength
   const isContinuous = totalQuestions === undefined
 
+  useEffect(() => {
+    if (!feedbackMessage) {
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(() => setFeedbackMessage(null), 3_000)
+    return () => window.clearTimeout(timeoutId)
+  }, [feedbackMessage])
+
   function navigateToSummary() {
     const completedSession = endSession()
     navigate('/practice/summary', {
@@ -66,6 +80,7 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
   }
 
   function handleResult(result: SelfReportedResult, selectedAnswer: number) {
+    setFeedbackMessage(feedbackEnabled ? getFeedbackMessage(result) : null)
     const outcome = recordResult(result, selectedAnswer)
 
     if (outcome.kind === 'completed') {
@@ -118,10 +133,17 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
       <QuestionCard
         animationEnabled={animationEnabled}
         currentQuestion={session.currentQuestionIndex + 1}
+        feedbackEnabled={feedbackEnabled}
         onResult={handleResult}
         question={currentQuestion}
         totalQuestions={totalQuestions}
       />
+
+      {feedbackMessage && (
+        <p aria-live="polite" className="session-feedback" role="status">
+          {feedbackMessage}
+        </p>
+      )}
 
       {storageWarning && (
         <p aria-live="polite" className="storage-warning" role="status">

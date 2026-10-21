@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { Question } from '../../types'
+import { getFeedbackMessage } from '../../services/feedback'
 
 import { AnswerChoice } from './AnswerChoice'
 
@@ -11,6 +12,7 @@ interface QuestionCardProps {
   currentQuestion: number
   totalQuestions?: number
   animationEnabled?: boolean
+  feedbackEnabled?: boolean
   onResult?: (result: SelfReportedResult, selectedAnswer: number) => void
 }
 
@@ -50,11 +52,13 @@ function QuestionCardContent({
   currentQuestion,
   totalQuestions,
   animationEnabled = true,
+  feedbackEnabled = true,
   onResult,
 }: QuestionCardProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [recordedResult, setRecordedResult] = useState<SelfReportedResult | null>(null)
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
   const prefersReducedMotion = usePrefersReducedMotion()
   const animationsActive = animationEnabled && !prefersReducedMotion
 
@@ -101,6 +105,7 @@ function QuestionCardContent({
     }
 
     setRecordedResult(result)
+    setFeedbackMessage(feedbackEnabled ? getFeedbackMessage(result) : null)
     if (selectedAnswer !== null) {
       onResult?.(result, selectedAnswer)
     }
@@ -195,11 +200,9 @@ function QuestionCardContent({
                 <span aria-hidden="true">↗</span> I Got It Wrong
               </button>
             </div>
-            {recordedResult && (
+            {feedbackMessage && (
               <p className="result-confirmation" role="status">
-                {recordedResult === 'correct'
-                  ? 'Nice work!'
-                  : 'Keep practicing—you are improving!'}
+                {feedbackMessage}
               </p>
             )}
           </section>

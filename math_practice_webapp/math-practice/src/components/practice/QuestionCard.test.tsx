@@ -20,6 +20,7 @@ const question: Question = {
 
 describe('QuestionCard', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
@@ -64,6 +65,35 @@ describe('QuestionCard', () => {
     expect(
       screen.getByText('The answer is revealed. The correct answer is 56.'),
     ).toHaveAttribute('role', 'status')
+  })
+
+  it('shows encouraging feedback when enabled and hides it when disabled', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <QuestionCard currentQuestion={1} question={question} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Answer choice 1: 48' }))
+    await user.click(screen.getByRole('button', { name: /flip card/i }))
+    await user.click(screen.getByRole('button', { name: /i got it wrong/i }))
+    expect(
+      screen.getByText('That was a brave try. Every question helps you learn.'),
+    ).toBeInTheDocument()
+
+    rerender(
+      <QuestionCard
+        feedbackEnabled={false}
+        currentQuestion={2}
+        question={{ ...question, id: 'question-2' }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Answer choice 1: 48' }))
+    await user.click(screen.getByRole('button', { name: /flip card/i }))
+    await user.click(screen.getByRole('button', { name: /i got it right/i }))
+    expect(
+      screen.queryByText('Great job! Your careful thinking paid off.'),
+    ).not.toBeInTheDocument()
   })
 
   it('supports Enter, Space, and number keys for answer choices', async () => {

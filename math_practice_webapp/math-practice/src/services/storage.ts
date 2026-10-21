@@ -8,7 +8,7 @@ import type {
   SessionLength,
 } from '../types'
 
-export const CURRENT_STORAGE_SCHEMA_VERSION = 3
+export const CURRENT_STORAGE_SCHEMA_VERSION = 4
 export const STORAGE_KEY = 'math-practice:data'
 export const MAX_STORED_SESSIONS = 50
 
@@ -43,12 +43,20 @@ const migrations: Record<number, StorageMigration> = {
       ? { ...data.settings, masteryThreshold: defaultSettings.masteryThreshold }
       : data.settings,
   }),
+  3: (data) => ({
+    ...data,
+    schemaVersion: 4,
+    settings: isRecord(data.settings)
+      ? { ...data.settings, feedbackEnabled: defaultSettings.feedbackEnabled }
+      : data.settings,
+  }),
 }
 
 export const defaultSettings: AppSettings = {
   soundEffectsEnabled: true,
   cardAnimationEnabled: true,
   showExplanations: true,
+  feedbackEnabled: true,
   defaultSessionLength: 10,
   defaultDifficulty: 1,
   defaultOperations: [],
@@ -106,6 +114,7 @@ export function isValidSettings(value: unknown): value is AppSettings {
     typeof value.soundEffectsEnabled === 'boolean' &&
     typeof value.cardAnimationEnabled === 'boolean' &&
     typeof value.showExplanations === 'boolean' &&
+    typeof value.feedbackEnabled === 'boolean' &&
     isSessionLength(value.defaultSessionLength) &&
     isDifficulty(value.defaultDifficulty) &&
     Array.isArray(value.defaultOperations) &&

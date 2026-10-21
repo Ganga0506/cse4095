@@ -174,6 +174,23 @@ describe('storageService', () => {
     expect(storageService.loadSettings().masteryThreshold).toBe(3)
   })
 
+  it('migrates existing settings with encouraging feedback enabled', () => {
+    const legacySettings = { ...defaultSettings }
+    Reflect.deleteProperty(legacySettings, 'feedbackEnabled')
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 3,
+        settings: legacySettings,
+        sessions: [],
+        attempts: [],
+        mistakePatterns: [],
+      }),
+    )
+
+    expect(storageService.loadSettings().feedbackEnabled).toBe(true)
+  })
+
   it('persists validated mistake patterns', () => {
     expect(storageService.saveMistakePatterns([mistakePattern])).toBe(true)
     expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])

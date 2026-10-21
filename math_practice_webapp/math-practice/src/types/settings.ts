@@ -5,6 +5,7 @@ export interface AppSettings {
   soundEffectsEnabled: boolean
   cardAnimationEnabled: boolean
   showExplanations: boolean
+  feedbackEnabled: boolean
   defaultSessionLength: SessionLength
   defaultDifficulty: DifficultyLevel
   defaultOperations: MathOperation[]
