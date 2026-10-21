@@ -1,4 +1,4 @@
-import type { DifficultyLevel, MathOperation, Question } from '../types'
+import type { DifficultyLevel, MathOperation, Question, QuestionSource } from '../types'
 
 import { generateAnswerChoices } from './answerChoices'
 import { createId } from '../utils/ids'
@@ -35,11 +35,13 @@ const operationSymbols: Record<MathOperation, string> = {
   division: '÷',
 }
 
-function createQuestion(
+export function createQuestionFromOperands(
   operation: MathOperation,
   firstOperand: number,
   secondOperand: number,
   difficulty: DifficultyLevel,
+  source: QuestionSource = 'regular',
+  mistakePatternId?: string,
 ): Question {
   const correctAnswer = calculateAnswer(operation, firstOperand, secondOperand)
 
@@ -57,7 +59,8 @@ function createQuestion(
       correctAnswer,
     }),
     difficulty,
-    source: 'regular',
+    source,
+    ...(mistakePatternId ? { mistakePatternId } : {}),
   }
 }
 
@@ -83,7 +86,7 @@ export function generateAdditionQuestion(difficulty: DifficultyLevel): Question 
   const firstOperand = randomInt(range.min, range.max)
   const secondOperand = randomInt(range.min, range.max)
 
-  return createQuestion('addition', firstOperand, secondOperand, difficulty)
+  return createQuestionFromOperands('addition', firstOperand, secondOperand, difficulty)
 }
 
 export function generateSubtractionQuestion(difficulty: DifficultyLevel): Question {
@@ -93,13 +96,18 @@ export function generateSubtractionQuestion(difficulty: DifficultyLevel): Questi
   const firstOperand = Math.max(firstValue, secondValue)
   const secondOperand = Math.min(firstValue, secondValue)
 
-  return createQuestion('subtraction', firstOperand, secondOperand, difficulty)
+  return createQuestionFromOperands(
+    'subtraction',
+    firstOperand,
+    secondOperand,
+    difficulty,
+  )
 }
 
 export function generateMultiplicationQuestion(difficulty: DifficultyLevel): Question {
   if (difficulty <= 2) {
     const range = multiplicationRanges[difficulty]
-    return createQuestion(
+    return createQuestionFromOperands(
       'multiplication',
       randomInt(range.min, range.max),
       randomInt(range.min, range.max),
@@ -108,7 +116,7 @@ export function generateMultiplicationQuestion(difficulty: DifficultyLevel): Que
   }
 
   if (difficulty === 3) {
-    return createQuestion(
+    return createQuestionFromOperands(
       'multiplication',
       randomInt(0, 9),
       randomInt(0, 99),
@@ -116,7 +124,7 @@ export function generateMultiplicationQuestion(difficulty: DifficultyLevel): Que
     )
   }
 
-  return createQuestion(
+  return createQuestionFromOperands(
     'multiplication',
     randomInt(10, 99),
     randomInt(1, 99),
@@ -137,7 +145,7 @@ export function generateDivisionQuestion(difficulty: DifficultyLevel): Question 
   const quotient = randomInt(0, Math.floor(maximumDividend / divisor))
   const dividend = divisor * quotient
 
-  return createQuestion('division', dividend, divisor, difficulty)
+  return createQuestionFromOperands('division', dividend, divisor, difficulty)
 }
 
 function selectOperation(
