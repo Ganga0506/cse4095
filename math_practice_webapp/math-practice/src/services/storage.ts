@@ -262,6 +262,11 @@ export const storageService = {
     }
   },
 
+  clearStatistics(storage?: Storage | null): boolean {
+    const data = readData(storage)
+    return writeData({ ...data, attempts: [], sessions: [] }, storage)
+  },
+
   loadAttempts(storage?: Storage | null): PracticeAttempt[] {
     return readData(storage).attempts
   },

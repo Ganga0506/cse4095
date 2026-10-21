@@ -825,6 +825,249 @@ h2 {
   margin-top: 1.5rem;
 }
 
+.button--danger {
+  background: #fff1f0;
+  box-shadow: inset 0 0 0 2px #e69a9a;
+  color: #9f2931;
+}
+
+.button--danger:hover:not(:disabled) {
+  background: #ffe2e0;
+}
+
+.statistics-page,
+.settings-page {
+  max-width: 70rem;
+}
+
+.statistics-page__heading {
+  align-items: end;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+}
+
+.statistics-section {
+  margin-top: 2.5rem;
+}
+
+.section-heading {
+  margin-bottom: 1rem;
+}
+
+.section-heading h2,
+.danger-zone h2 {
+  font-size: clamp(1.4rem, 3vw, 2rem);
+}
+
+.section-heading p,
+.danger-zone p {
+  color: #4e6687;
+  margin-bottom: 0;
+}
+
+.overall-statistics,
+.statistics-card-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.overall-statistics > div,
+.statistics-card,
+.recent-session,
+.settings-panel fieldset,
+.danger-zone,
+.empty-state {
+  background: rgb(255 255 255 / 84%);
+  border: 1px solid #ced8f4;
+  border-radius: 1rem;
+  box-shadow: 0 0.5rem 1.5rem rgb(56 72 120 / 8%);
+}
+
+.overall-statistics > div {
+  padding: 1rem;
+}
+
+.overall-statistics span,
+.statistics-card dt,
+.recent-session dt {
+  color: #6251b4;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.overall-statistics strong {
+  color: #1f4477;
+  display: block;
+  font-size: 2rem;
+  margin-top: 0.25rem;
+}
+
+.statistics-card {
+  padding: 1.15rem;
+}
+
+.statistics-card h3,
+.recent-session h3 {
+  color: #17325c;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.statistics-card__accuracy {
+  color: #3056d3;
+  font-size: 1.2rem;
+  font-weight: 900;
+  margin: 0.4rem 0 1rem;
+}
+
+.statistics-card__details,
+.recent-session dl {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0;
+}
+
+.statistics-card dd,
+.recent-session dd {
+  color: #1f4477;
+  font-weight: 900;
+  margin: 0.15rem 0 0;
+}
+
+.empty-state {
+  color: #4e6687;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+}
+
+.empty-state h2 {
+  font-size: 1.35rem;
+}
+
+.empty-state p {
+  margin-bottom: 0;
+}
+
+.empty-state--compact {
+  margin-top: 0;
+}
+
+.recent-session-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.recent-session {
+  align-items: center;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(12rem, 1fr) 1.5fr;
+  padding: 1rem 1.15rem;
+}
+
+.recent-session p {
+  color: #4e6687;
+  margin: 0.3rem 0 0;
+}
+
+.recent-session dl {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.settings-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-panel fieldset {
+  border: 0;
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.settings-panel legend {
+  font-size: 1.25rem;
+  padding: 0;
+}
+
+.settings-toggle {
+  align-items: center;
+  border-top: 1px solid #e1e7f6;
+  color: #1f4477;
+  display: flex;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+}
+
+.settings-toggle input,
+.settings-operation input {
+  accent-color: #3056d3;
+  height: 1.2rem;
+  width: 1.2rem;
+}
+
+.settings-toggle strong,
+.settings-toggle small {
+  display: block;
+}
+
+.settings-toggle small {
+  color: #4e6687;
+  margin-top: 0.15rem;
+}
+
+.settings-select {
+  color: #1f4477;
+  display: grid;
+  font-weight: 800;
+  gap: 0.4rem;
+  max-width: 28rem;
+}
+
+.settings-select select {
+  background: #fff;
+  border: 2px solid #cad5f0;
+  border-radius: 0.7rem;
+  color: #1f4477;
+  font: inherit;
+  padding: 0.7rem;
+}
+
+.settings-operation-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-operation {
+  align-items: center;
+  background: #f5f7ff;
+  border-radius: 0.7rem;
+  color: #1f4477;
+  display: flex;
+  font-weight: 800;
+  gap: 0.6rem;
+  padding: 0.75rem;
+}
+
+.danger-zone {
+  align-items: center;
+  border-color: #e9b8b5;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 2.5rem;
+  padding: 1.25rem;
+}
+
 .sr-only {
   height: 1px;
   margin: -1px;
@@ -863,6 +1106,27 @@ h2 {
   }
 
   .summary-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .statistics-page__heading,
+  .danger-zone,
+  .recent-session {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .statistics-page__heading,
+  .danger-zone {
+    display: flex;
+  }
+
+  .recent-session {
+    display: flex;
+  }
+
+  .overall-statistics,
+  .statistics-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -917,6 +1181,18 @@ h2 {
   .summary-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .overall-statistics,
+  .statistics-card-grid,
+  .settings-operation-grid,
+  .statistics-card__details,
+  .recent-session dl {
+    grid-template-columns: 1fr;
+  }
+
+  .danger-zone .button {
+    width: 100%;
   }
 }
 

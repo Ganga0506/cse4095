@@ -132,6 +132,28 @@ describe('storageService', () => {
     })
   })
 
+  it('resets statistics without changing settings, then clears all app data', () => {
+    const settings: AppSettings = {
+      ...defaultSettings,
+      defaultDifficulty: 4,
+      defaultOperations: ['division'],
+    }
+    const session = completeSession(createPracticeSession(configuration))
+    const attempt = createPracticeAttempt(session, question, 7, true)
+
+    storageService.saveSettings(settings)
+    storageService.saveAttempt(attempt)
+    storageService.saveCompletedSession(session)
+
+    expect(storageService.clearStatistics()).toBe(true)
+    expect(storageService.loadSettings()).toEqual(settings)
+    expect(storageService.loadAttempts()).toEqual([])
+    expect(storageService.loadCompletedSessions()).toEqual([])
+
+    expect(storageService.clear()).toBe(true)
+    expect(storageService.loadSettings()).toEqual(defaultSettings)
+  })
+
   it('returns safe values when storage is unavailable or full', () => {
     const unavailableStorage = createUnavailableStorage()
     const fullStorage = createFullStorage()

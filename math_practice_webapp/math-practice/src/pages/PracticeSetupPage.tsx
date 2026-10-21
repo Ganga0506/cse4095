@@ -5,12 +5,7 @@ import { DifficultySelector } from '../components/practice/DifficultySelector'
 import { OperationSelector } from '../components/practice/OperationSelector'
 import { SessionLengthSelector } from '../components/practice/SessionLengthSelector'
 import { PageContainer } from '../components/layout/PageContainer'
-import type {
-  AppSettings,
-  DifficultyLevel,
-  MathOperation,
-  SessionLength,
-} from '../types'
+import type { DifficultyLevel, MathOperation, SessionLength } from '../types'
 import { storageService } from '../services/storage'
 
 export function PracticeSetupPage() {
@@ -33,14 +28,6 @@ export function PracticeSetupPage() {
     if (!isReady || difficulty === null) {
       return
     }
-
-    const updatedSettings: AppSettings = {
-      ...settings,
-      defaultDifficulty: difficulty,
-      defaultOperations: operations,
-      defaultSessionLength: sessionLength,
-    }
-    storageService.saveSettings(updatedSettings)
 
     navigate('/practice/session', {
       state: {
