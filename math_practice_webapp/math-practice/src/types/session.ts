@@ -1,4 +1,10 @@
-import type { DifficultyLevel, MathOperation, QuestionSource } from './question'
+import type { MistakePattern } from './mistake'
+import type {
+  DifficultyLevel,
+  MathOperation,
+  Question,
+  QuestionSource,
+} from './question'
 
 export type SessionLength = 5 | 10 | 20 | 'continuous'
 export type PracticeMode = 'regular' | 'mistake-review'
@@ -38,4 +44,18 @@ export interface PracticeSession {
   incorrect: number
   currentQuestionIndex: number
   isActive: boolean
+}
+
+/**
+ * The in-progress work needed to let a child safely return after a refresh.
+ * Completed sessions are stored separately for statistics and history.
+ */
+export interface ActivePracticeState {
+  configuration: PracticeSetupConfig
+  session: PracticeSession
+  attempts: PracticeAttempt[]
+  currentQuestion: Question
+  selectedAnswer: number | null
+  reviewPatterns: MistakePattern[]
+  reviewPatternIndex: number
 }

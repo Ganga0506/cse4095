@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type {
+  ActivePracticeState,
   AppSettings,
   MistakePattern,
   PracticeSetupConfig,
@@ -49,6 +50,18 @@ const mistakePattern: MistakePattern = {
   similarCorrectCount: 0,
   lastIncorrectAt: '2026-10-21T10:00:00.000Z',
   mastered: false,
+}
+
+function createActivePractice(): ActivePracticeState {
+  return {
+    configuration,
+    session: createPracticeSession(configuration),
+    attempts: [],
+    currentQuestion: question,
+    selectedAnswer: 6,
+    reviewPatterns: [],
+    reviewPatternIndex: 0,
+  }
 }
 
 function createUnavailableStorage(): Storage {
@@ -189,6 +202,29 @@ describe('storageService', () => {
     )
 
     expect(storageService.loadSettings().feedbackEnabled).toBe(true)
+    expect(storageService.loadActivePractice()).toBeNull()
+  })
+
+  it('persists a validated active session and safely drops an invalid snapshot', () => {
+    const activePractice = createActivePractice()
+
+    expect(storageService.saveActivePractice(activePractice)).toBe(true)
+    expect(storageService.loadActivePractice()).toEqual(activePractice)
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: CURRENT_STORAGE_SCHEMA_VERSION,
+        settings: defaultSettings,
+        sessions: [],
+        attempts: [],
+        mistakePatterns: [],
+        activePractice: { ...activePractice, selectedAnswer: 99 },
+      }),
+    )
+
+    expect(storageService.loadActivePractice()).toBeNull()
+    expect(storageService.loadSettings()).toEqual(defaultSettings)
   })
 
   it('persists validated mistake patterns', () => {
@@ -231,16 +267,29 @@ describe('storageService', () => {
     storageService.saveAttempt(attempt)
     storageService.saveCompletedSession(session)
     storageService.saveMistakePatterns([mistakePattern])
+    storageService.saveActivePractice(createActivePractice())
 
     expect(storageService.clearStatistics()).toBe(true)
     expect(storageService.loadSettings()).toEqual(settings)
     expect(storageService.loadAttempts()).toEqual([])
     expect(storageService.loadCompletedSessions()).toEqual([])
     expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
+    expect(storageService.loadActivePractice()).not.toBeNull()
 
     expect(storageService.clear()).toBe(true)
     expect(storageService.loadSettings()).toEqual(defaultSettings)
     expect(storageService.loadMistakePatterns()).toEqual([])
+    expect(storageService.loadActivePractice()).toBeNull()
+  })
+
+  it('clears only the active session snapshot when a session ends', () => {
+    const activePractice = createActivePractice()
+    storageService.saveActivePractice(activePractice)
+    storageService.saveSettings({ ...defaultSettings, defaultDifficulty: 3 })
+
+    expect(storageService.clearActivePractice()).toBe(true)
+    expect(storageService.loadActivePractice()).toBeNull()
+    expect(storageService.loadSettings().defaultDifficulty).toBe(3)
   })
 
   it('returns safe values when storage is unavailable or full', () => {

@@ -1,14 +1,17 @@
 import type {
+  ActivePracticeState,
   AppSettings,
   DifficultyLevel,
   MathOperation,
   MistakePattern,
   PracticeAttempt,
   PracticeSession,
+  PracticeSetupConfig,
+  Question,
   SessionLength,
 } from '../types'
 
-export const CURRENT_STORAGE_SCHEMA_VERSION = 4
+export const CURRENT_STORAGE_SCHEMA_VERSION = 5
 export const STORAGE_KEY = 'math-practice:data'
 export const MAX_STORED_SESSIONS = 50
 
@@ -18,6 +21,7 @@ interface StoredAppData {
   sessions: PracticeSession[]
   attempts: PracticeAttempt[]
   mistakePatterns: MistakePattern[]
+  activePractice: ActivePracticeState | null
 }
 
 type StoredRecord = Record<string, unknown>
@@ -50,6 +54,7 @@ const migrations: Record<number, StorageMigration> = {
       ? { ...data.settings, feedbackEnabled: defaultSettings.feedbackEnabled }
       : data.settings,
   }),
+  4: (data) => ({ ...data, schemaVersion: 5, activePractice: null }),
 }
 
 export const defaultSettings: AppSettings = {
@@ -70,6 +75,7 @@ function createDefaultData(): StoredAppData {
     sessions: [],
     attempts: [],
     mistakePatterns: [],
+    activePractice: null,
   }
 }
 
@@ -189,6 +195,66 @@ export function isValidMistakePattern(value: unknown): value is MistakePattern {
   )
 }
 
+function isValidPracticeSetup(value: unknown): value is PracticeSetupConfig {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    Array.isArray(value.operations) &&
+    (value.mode === 'mistake-review' || value.operations.length > 0) &&
+    value.operations.every(isOperation) &&
+    isDifficulty(value.difficulty) &&
+    isSessionLength(value.sessionLength) &&
+    (value.mode === 'regular' || value.mode === 'mistake-review')
+  )
+}
+
+function isValidQuestion(value: unknown): value is Question {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    isNonEmptyString(value.id) &&
+    isOperation(value.operation) &&
+    isFiniteNumber(value.firstOperand) &&
+    isFiniteNumber(value.secondOperand) &&
+    isNonEmptyString(value.displayText) &&
+    isFiniteNumber(value.correctAnswer) &&
+    Array.isArray(value.choices) &&
+    value.choices.length === 4 &&
+    value.choices.every(isFiniteNumber) &&
+    new Set(value.choices).size === value.choices.length &&
+    isDifficulty(value.difficulty) &&
+    (value.source === 'regular' || value.source === 'mistake-review') &&
+    (value.mistakePatternId === undefined || isNonEmptyString(value.mistakePatternId))
+  )
+}
+
+export function isValidActivePracticeState(
+  value: unknown,
+): value is ActivePracticeState {
+  if (!isRecord(value)) {
+    return false
+  }
+
+  return (
+    isValidPracticeSetup(value.configuration) &&
+    isValidPracticeSession(value.session) &&
+    value.session.isActive &&
+    Array.isArray(value.attempts) &&
+    value.attempts.every(isValidPracticeAttempt) &&
+    isValidQuestion(value.currentQuestion) &&
+    (value.selectedAnswer === null ||
+      (isFiniteNumber(value.selectedAnswer) &&
+        value.currentQuestion.choices.includes(value.selectedAnswer))) &&
+    Array.isArray(value.reviewPatterns) &&
+    value.reviewPatterns.every(isValidMistakePattern) &&
+    isNonNegativeInteger(value.reviewPatternIndex)
+  )
+}
+
 function isValidStoredData(value: unknown): value is StoredAppData {
   if (!isRecord(value)) {
     return false
@@ -202,7 +268,8 @@ function isValidStoredData(value: unknown): value is StoredAppData {
     Array.isArray(value.attempts) &&
     value.attempts.every(isValidPracticeAttempt) &&
     Array.isArray(value.mistakePatterns) &&
-    value.mistakePatterns.every(isValidMistakePattern)
+    value.mistakePatterns.every(isValidMistakePattern) &&
+    (value.activePractice === null || isValidActivePracticeState(value.activePractice))
   )
 }
 
@@ -240,6 +307,9 @@ function migrateStoredData(value: unknown): StoredAppData | null {
     mistakePatterns: Array.isArray(migratedData.mistakePatterns)
       ? migratedData.mistakePatterns.filter(isValidMistakePattern)
       : [],
+    activePractice: isValidActivePracticeState(migratedData.activePractice)
+      ? migratedData.activePractice
+      : null,
   }
 
   return isValidStoredData(recoveredData) ? recoveredData : null
@@ -322,6 +392,10 @@ export const storageService = {
     return readData(storage).attempts
   },
 
+  loadActivePractice(storage?: Storage | null): ActivePracticeState | null {
+    return readData(storage).activePractice
+  },
+
   loadCompletedSessions(storage?: Storage | null): PracticeSession[] {
     return readData(storage).sessions
   },
@@ -344,6 +418,23 @@ export const storageService = {
       { ...data, attempts: replaceById(data.attempts, attempt) },
       storage,
     )
+  },
+
+  saveActivePractice(
+    activePractice: ActivePracticeState,
+    storage?: Storage | null,
+  ): boolean {
+    if (!isValidActivePracticeState(activePractice)) {
+      return false
+    }
+
+    const data = readData(storage)
+    return writeData({ ...data, activePractice }, storage)
+  },
+
+  clearActivePractice(storage?: Storage | null): boolean {
+    const data = readData(storage)
+    return writeData({ ...data, activePractice: null }, storage)
   },
 
   saveCompletedSession(session: PracticeSession, storage?: Storage | null): boolean {

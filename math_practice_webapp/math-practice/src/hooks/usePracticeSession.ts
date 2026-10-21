@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type {
   MistakePattern,
+  ActivePracticeState,
   PracticeAttempt,
   PracticeSession,
   PracticeSetupConfig,
@@ -33,23 +34,65 @@ export interface CompletedSession {
 export type AttemptOutcome =
   { kind: 'advanced' } | { kind: 'completed'; completedSession: CompletedSession }
 
-export function usePracticeSession(configuration: PracticeSetupConfig) {
-  const [session, setSession] = useState(() => createPracticeSession(configuration))
-  const [attempts, setAttempts] = useState<PracticeAttempt[]>([])
-  const [storageWarning, setStorageWarning] = useState<string | null>(null)
-  const [reviewPatterns] = useState<MistakePattern[]>(() =>
-    configuration.mode === 'mistake-review'
-      ? prioritizeMistakePatterns(storageService.loadMistakePatterns())
-      : [],
+export function usePracticeSession(
+  configuration: PracticeSetupConfig,
+  restoredPractice: ActivePracticeState | null = null,
+) {
+  const [session, setSession] = useState(
+    () => restoredPractice?.session ?? createPracticeSession(configuration),
   )
-  const [reviewPatternIndex, setReviewPatternIndex] = useState(0)
+  const [attempts, setAttempts] = useState<PracticeAttempt[]>(
+    () => restoredPractice?.attempts ?? [],
+  )
+  const [storageWarning, setStorageWarning] = useState<string | null>(null)
+  const [reviewPatterns] = useState<MistakePattern[]>(
+    () =>
+      restoredPractice?.reviewPatterns ??
+      (configuration.mode === 'mistake-review'
+        ? prioritizeMistakePatterns(storageService.loadMistakePatterns())
+        : []),
+  )
+  const [reviewPatternIndex, setReviewPatternIndex] = useState(
+    () => restoredPractice?.reviewPatternIndex ?? 0,
+  )
   const [currentQuestion, setCurrentQuestion] = useState<Question>(() => {
+    if (restoredPractice) {
+      return restoredPractice.currentQuestion
+    }
+
     const firstReviewPattern = reviewPatterns[0]
 
     return firstReviewPattern
       ? generateSimilarQuestion(firstReviewPattern)
       : generateQuestion(configuration.operations, configuration.difficulty)
   })
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(
+    () => restoredPractice?.selectedAnswer ?? null,
+  )
+
+  useEffect(() => {
+    if (!session.isActive) {
+      return
+    }
+
+    storageService.saveActivePractice({
+      configuration,
+      session,
+      attempts,
+      currentQuestion,
+      selectedAnswer,
+      reviewPatterns,
+      reviewPatternIndex,
+    })
+  }, [
+    attempts,
+    configuration,
+    currentQuestion,
+    reviewPatternIndex,
+    reviewPatterns,
+    selectedAnswer,
+    session,
+  ])
 
   function recordResult(
     result: SelfReportedResult,
@@ -107,8 +150,14 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
           'Your practice is continuing, but this session summary could not be saved on this device.',
         )
       }
+      if (!storageService.clearActivePractice()) {
+        setStorageWarning(
+          'Your session is complete, but its saved in-progress copy could not be cleared.',
+        )
+      }
       setSession(completedSession)
       setAttempts(updatedAttempts)
+      setSelectedAnswer(null)
       return {
         kind: 'completed',
         completedSession: { session: completedSession, attempts: updatedAttempts },
@@ -117,6 +166,7 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
 
     setSession(updatedSession)
     setAttempts(updatedAttempts)
+    setSelectedAnswer(null)
     if (reviewPatterns.length > 0) {
       const nextPatternIndex = (reviewPatternIndex + 1) % reviewPatterns.length
       const nextPattern = reviewPatterns[nextPatternIndex]
@@ -137,7 +187,13 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
         'Your practice is continuing, but this session summary could not be saved on this device.',
       )
     }
+    if (!storageService.clearActivePractice()) {
+      setStorageWarning(
+        'Your session is complete, but its saved in-progress copy could not be cleared.',
+      )
+    }
     setSession(completedSession)
+    setSelectedAnswer(null)
 
     return { session: completedSession, attempts }
   }
@@ -147,7 +203,9 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
     currentQuestion,
     endSession,
     recordResult,
+    selectedAnswer,
     session,
+    setSelectedAnswer,
     setStorageWarning,
     storageWarning,
   }

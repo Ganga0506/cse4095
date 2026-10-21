@@ -820,6 +820,40 @@ h2 {
   text-align: center;
 }
 
+.leave-session-dialog {
+  align-items: center;
+  background: rgb(23 50 92 / 52%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 10;
+}
+
+.leave-session-dialog__content {
+  background: #fffdf7;
+  border: 2px solid #cbd5f7;
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 3rem rgb(23 50 92 / 30%);
+  max-width: 31rem;
+  padding: clamp(1.5rem, 5vw, 2.25rem);
+  text-align: center;
+}
+
+.leave-session-dialog__content p {
+  color: #466181;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.leave-session-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
 .summary-page {
   max-width: 54rem;
 }

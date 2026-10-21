@@ -194,4 +194,26 @@ describe('QuestionCard', () => {
       'question-card--no-animation',
     )
   })
+
+  it('restores a saved answer and reports later answer changes', async () => {
+    const user = userEvent.setup()
+    const onAnswerSelect = vi.fn()
+    render(
+      <QuestionCard
+        currentQuestion={1}
+        initialSelectedAnswer={56}
+        onAnswerSelect={onAnswerSelect}
+        question={question}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Answer choice 3: 56' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: /flip card/i })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Answer choice 2: 54' }))
+    expect(onAnswerSelect).toHaveBeenCalledWith(54)
+  })
 })

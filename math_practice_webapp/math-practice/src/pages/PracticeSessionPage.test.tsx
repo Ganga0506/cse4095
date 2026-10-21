@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { Link, MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PracticeSetupConfig } from '../types'
@@ -41,10 +41,12 @@ function renderSession(configuration?: PracticeSetupConfig) {
         },
       ]}
     >
+      <Link to="/statistics">Leave practice</Link>
       <Routes>
         <Route path="/practice/setup" element={<PracticeSetupPage />} />
         <Route path="/practice/session" element={<PracticeSessionPage />} />
         <Route path="/practice/summary" element={<SessionSummaryPage />} />
+        <Route path="/statistics" element={<h1>Statistics destination</h1>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -108,6 +110,7 @@ describe('PracticeSessionPage', () => {
     expect(screen.getByText('Questions attempted').parentElement).toHaveTextContent('5')
     expect(storageService.loadAttempts()).toHaveLength(5)
     expect(storageService.loadCompletedSessions()).toHaveLength(1)
+    expect(storageService.loadActivePractice()).toBeNull()
     expect(screen.getByRole('button', { name: /practice again/i })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /practice mistakes/i }),
@@ -137,6 +140,52 @@ describe('PracticeSessionPage', () => {
     })
     expect(screen.getByText('2 correct answers')).toBeInTheDocument()
     expect(screen.getByText('Questions attempted').parentElement).toHaveTextContent('2')
+    expect(storageService.loadActivePractice()).toBeNull()
+  })
+
+  it('restores the active question and a selected answer after a refresh', async () => {
+    const user = userEvent.setup()
+    const firstRender = renderSession(fiveQuestionConfiguration)
+    const answerChoice = screen.getAllByRole('button', {
+      name: /^answer choice 2:/i,
+    })[0]
+    const questionText = document.querySelector('.math-question')?.textContent
+
+    await user.click(answerChoice)
+    await waitFor(() => {
+      expect(storageService.loadActivePractice()?.selectedAnswer).toBe(
+        Number(answerChoice.getAttribute('aria-label')?.replace(/^.*: /, '')),
+      )
+    })
+
+    firstRender.unmount()
+    renderSession()
+
+    expect(screen.getByText(questionText ?? '')).toBeInTheDocument()
+    expect(
+      screen.getAllByRole('button', { name: /^answer choice 2:/i })[0],
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('lets a child continue or end an active session before leaving', async () => {
+    const user = userEvent.setup()
+    renderSession(fiveQuestionConfiguration)
+
+    await user.click(screen.getByRole('link', { name: /leave practice/i }))
+    expect(screen.getByRole('dialog', { name: /keep practicing/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /continue session/i }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Question 1 of 5')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: /leave practice/i }))
+    await user.click(screen.getByRole('button', { name: /end and leave/i }))
+
+    expect(
+      await screen.findByRole('heading', { name: /statistics destination/i }),
+    ).toBeInTheDocument()
+    expect(storageService.loadActivePractice()).toBeNull()
+    expect(storageService.loadCompletedSessions()).toHaveLength(1)
   })
 
   it('stores an incorrect self-reported answer as a mistake pattern', async () => {

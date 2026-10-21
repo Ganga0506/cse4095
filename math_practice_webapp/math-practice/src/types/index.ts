@@ -6,6 +6,7 @@ export type {
 } from './question'
 export type { MistakePattern } from './mistake'
 export type {
+  ActivePracticeState,
   PracticeAttempt,
   PracticeSession,
   PracticeSetupConfig,

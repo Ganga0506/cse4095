@@ -13,6 +13,8 @@ interface QuestionCardProps {
   totalQuestions?: number
   animationEnabled?: boolean
   feedbackEnabled?: boolean
+  initialSelectedAnswer?: number | null
+  onAnswerSelect?: (answer: number) => void
   onResult?: (result: SelfReportedResult, selectedAnswer: number) => void
 }
 
@@ -53,9 +55,13 @@ function QuestionCardContent({
   totalQuestions,
   animationEnabled = true,
   feedbackEnabled = true,
+  initialSelectedAnswer = null,
+  onAnswerSelect,
   onResult,
 }: QuestionCardProps) {
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(
+    initialSelectedAnswer,
+  )
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [recordedResult, setRecordedResult] = useState<SelfReportedResult | null>(null)
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
@@ -97,6 +103,11 @@ function QuestionCardContent({
     if (selectedAnswer !== null) {
       setIsCardFlipped(true)
     }
+  }
+
+  function handleAnswerSelect(answer: number) {
+    setSelectedAnswer(answer)
+    onAnswerSelect?.(answer)
   }
 
   function handleResult(result: SelfReportedResult) {
@@ -145,7 +156,7 @@ function QuestionCardContent({
                   isDisabled={isCardFlipped}
                   isSelected={selectedAnswer === choice}
                   key={choice}
-                  onSelect={setSelectedAnswer}
+                  onSelect={handleAnswerSelect}
                   value={choice}
                 />
               ))}
