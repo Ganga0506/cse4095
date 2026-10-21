@@ -730,6 +730,17 @@ h2 {
   margin: 1.5rem auto 0;
 }
 
+.storage-warning {
+  background: #fff4c2;
+  border: 2px solid #d99d1a;
+  border-radius: 0.75rem;
+  color: var(--color-ink);
+  margin: 1rem auto 0;
+  max-width: 42rem;
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+
 .summary-page {
   max-width: 54rem;
 }

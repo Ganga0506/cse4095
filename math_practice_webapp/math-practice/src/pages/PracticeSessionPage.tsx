@@ -9,6 +9,7 @@ import { ProgressBar } from '../components/practice/ProgressBar'
 import { PageContainer } from '../components/layout/PageContainer'
 import { usePracticeSession } from '../hooks/usePracticeSession'
 import { isValidPracticeSetup } from '../services/practiceSession'
+import { storageService } from '../services/storage'
 import type { PracticeSetupConfig } from '../types'
 
 interface PracticeSessionLocationState {
@@ -32,9 +33,18 @@ interface ActivePracticeSessionProps {
 
 function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
   const navigate = useNavigate()
-  const [animationEnabled, setAnimationEnabled] = useState(true)
-  const { attempts, currentQuestion, endSession, recordResult, session } =
-    usePracticeSession(configuration)
+  const [animationEnabled, setAnimationEnabled] = useState(
+    () => storageService.loadSettings().cardAnimationEnabled,
+  )
+  const {
+    attempts,
+    currentQuestion,
+    endSession,
+    recordResult,
+    session,
+    setStorageWarning,
+    storageWarning,
+  } = usePracticeSession(configuration)
   const totalQuestions =
     session.sessionLength === 'continuous' ? undefined : session.sessionLength
   const isContinuous = totalQuestions === undefined
@@ -65,6 +75,17 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
     }
   }
 
+  function handleAnimationChange(enabled: boolean) {
+    setAnimationEnabled(enabled)
+
+    const settings = storageService.loadSettings()
+    if (!storageService.saveSettings({ ...settings, cardAnimationEnabled: enabled })) {
+      setStorageWarning(
+        'Your card preference will work for now, but it could not be saved on this device.',
+      )
+    }
+  }
+
   return (
     <PageContainer className="practice-session-page">
       <div className="practice-session-header">
@@ -75,7 +96,7 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
         <label className="animation-setting">
           <input
             checked={animationEnabled}
-            onChange={(event) => setAnimationEnabled(event.target.checked)}
+            onChange={(event) => handleAnimationChange(event.target.checked)}
             type="checkbox"
           />
           <span>Use card-flip animation</span>
@@ -93,6 +114,12 @@ function ActivePracticeSession({ configuration }: ActivePracticeSessionProps) {
         question={currentQuestion}
         totalQuestions={totalQuestions}
       />
+
+      {storageWarning && (
+        <p aria-live="polite" className="storage-warning" role="status">
+          {storageWarning}
+        </p>
+      )}
 
       {isContinuous && (
         <button

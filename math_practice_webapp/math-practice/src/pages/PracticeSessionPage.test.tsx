@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PracticeSetupConfig } from '../types'
+import { storageService } from '../services/storage'
 
 import { PracticeSessionPage } from './PracticeSessionPage'
 import { PracticeSetupPage } from './PracticeSetupPage'
@@ -42,6 +43,7 @@ async function answerCurrentQuestion(user: ReturnType<typeof userEvent.setup>) {
 }
 
 afterEach(() => {
+  localStorage.clear()
   vi.restoreAllMocks()
 })
 
@@ -74,6 +76,8 @@ describe('PracticeSessionPage', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('5 correct answers')).toBeInTheDocument()
     expect(screen.getByText('Questions attempted').parentElement).toHaveTextContent('5')
+    expect(storageService.loadAttempts()).toHaveLength(5)
+    expect(storageService.loadCompletedSessions()).toHaveLength(1)
     expect(screen.getByRole('button', { name: /practice again/i })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /practice mistakes/i }),

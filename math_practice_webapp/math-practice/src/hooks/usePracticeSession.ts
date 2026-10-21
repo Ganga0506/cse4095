@@ -16,6 +16,7 @@ import {
   isSessionComplete,
 } from '../services/practiceSession'
 import { generateQuestion } from '../services/questionGenerator'
+import { storageService } from '../services/storage'
 
 export interface CompletedSession {
   session: PracticeSession
@@ -28,6 +29,7 @@ export type AttemptOutcome =
 export function usePracticeSession(configuration: PracticeSetupConfig) {
   const [session, setSession] = useState(() => createPracticeSession(configuration))
   const [attempts, setAttempts] = useState<PracticeAttempt[]>([])
+  const [storageWarning, setStorageWarning] = useState<string | null>(null)
   const [currentQuestion, setCurrentQuestion] = useState<Question>(() =>
     generateQuestion(configuration.operations, configuration.difficulty),
   )
@@ -45,8 +47,19 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
     const updatedSession = applyAttempt(session, attempt)
     const updatedAttempts = [...attempts, attempt]
 
+    if (!storageService.saveAttempt(attempt)) {
+      setStorageWarning(
+        'Your practice is continuing, but this answer could not be saved on this device.',
+      )
+    }
+
     if (isSessionComplete(updatedSession)) {
       const completedSession = completeSession(updatedSession)
+      if (!storageService.saveCompletedSession(completedSession)) {
+        setStorageWarning(
+          'Your practice is continuing, but this session summary could not be saved on this device.',
+        )
+      }
       setSession(completedSession)
       setAttempts(updatedAttempts)
       return {
@@ -63,6 +76,11 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
 
   function endSession(): CompletedSession {
     const completedSession = completeSession(session)
+    if (!storageService.saveCompletedSession(completedSession)) {
+      setStorageWarning(
+        'Your practice is continuing, but this session summary could not be saved on this device.',
+      )
+    }
     setSession(completedSession)
 
     return { session: completedSession, attempts }
@@ -74,5 +92,7 @@ export function usePracticeSession(configuration: PracticeSetupConfig) {
     endSession,
     recordResult,
     session,
+    setStorageWarning,
+    storageWarning,
   }
 }

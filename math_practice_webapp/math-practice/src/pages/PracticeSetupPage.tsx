@@ -5,13 +5,26 @@ import { DifficultySelector } from '../components/practice/DifficultySelector'
 import { OperationSelector } from '../components/practice/OperationSelector'
 import { SessionLengthSelector } from '../components/practice/SessionLengthSelector'
 import { PageContainer } from '../components/layout/PageContainer'
-import type { DifficultyLevel, MathOperation, SessionLength } from '../types'
+import type {
+  AppSettings,
+  DifficultyLevel,
+  MathOperation,
+  SessionLength,
+} from '../types'
+import { storageService } from '../services/storage'
 
 export function PracticeSetupPage() {
   const navigate = useNavigate()
-  const [operations, setOperations] = useState<MathOperation[]>([])
-  const [difficulty, setDifficulty] = useState<DifficultyLevel | null>(null)
-  const [sessionLength, setSessionLength] = useState<SessionLength>(10)
+  const [settings] = useState(() => storageService.loadSettings())
+  const [operations, setOperations] = useState<MathOperation[]>(
+    () => settings.defaultOperations,
+  )
+  const [difficulty, setDifficulty] = useState<DifficultyLevel | null>(
+    () => settings.defaultDifficulty,
+  )
+  const [sessionLength, setSessionLength] = useState<SessionLength>(
+    () => settings.defaultSessionLength,
+  )
   const isReady = operations.length > 0 && difficulty !== null
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -20,6 +33,14 @@ export function PracticeSetupPage() {
     if (!isReady || difficulty === null) {
       return
     }
+
+    const updatedSettings: AppSettings = {
+      ...settings,
+      defaultDifficulty: difficulty,
+      defaultOperations: operations,
+      defaultSessionLength: sessionLength,
+    }
+    storageService.saveSettings(updatedSettings)
 
     navigate('/practice/session', {
       state: {
