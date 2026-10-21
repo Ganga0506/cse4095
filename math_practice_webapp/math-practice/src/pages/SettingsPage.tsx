@@ -228,6 +228,19 @@ export function SettingsPage() {
         </fieldset>
       </div>
 
+      <section aria-labelledby="privacy-heading" className="privacy-notice">
+        <h2 id="privacy-heading">Your privacy</h2>
+        <p>
+          Math Practice does not collect personal information, use tracking, or
+          show advertisements. Your settings and practice progress stay in this
+          browser only.
+        </p>
+        <p>
+          Clearing this browser&apos;s site data, or choosing Clear All Application
+          Data below, permanently removes saved progress from this device.
+        </p>
+      </section>
+
       <section className="danger-zone">
         <div>
           <h2>Clear all application data</h2>

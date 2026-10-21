@@ -1017,7 +1017,8 @@ h2 {
 }
 
 .section-heading p,
-.danger-zone p {
+.danger-zone p,
+.privacy-notice p {
   color: #4e6687;
   margin-bottom: 0;
 }
@@ -1034,6 +1035,7 @@ h2 {
 .recent-session,
 .settings-panel fieldset,
 .danger-zone,
+.privacy-notice,
 .empty-state {
   background: rgb(255 255 255 / 84%);
   border: 1px solid #ced8f4;
@@ -1327,6 +1329,19 @@ h2 {
   justify-content: space-between;
   margin-top: 2.5rem;
   padding: 1.25rem;
+}
+
+.privacy-notice {
+  margin-top: 2.5rem;
+  padding: 1.25rem;
+}
+
+.privacy-notice h2 {
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+}
+
+.privacy-notice p:last-child {
+  margin-bottom: 0;
 }
 
 .sr-only {
