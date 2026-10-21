@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { Question } from '../../types'
 
@@ -18,6 +18,29 @@ function formatQuestionWithAnswer(question: Question) {
   return question.displayText.replace('?', String(question.correctAnswer))
 }
 
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false,
+  )
+
+  useEffect(() => {
+    if (!window.matchMedia) {
+      return undefined
+    }
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches)
+
+    updatePreference()
+    mediaQuery.addEventListener('change', updatePreference)
+    return () => mediaQuery.removeEventListener('change', updatePreference)
+  }, [])
+
+  return prefersReducedMotion
+}
+
 export function QuestionCard({ question, ...props }: QuestionCardProps) {
   return <QuestionCardContent key={question.id} question={question} {...props} />
 }
@@ -32,6 +55,39 @@ function QuestionCardContent({
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [isCardFlipped, setIsCardFlipped] = useState(false)
   const [recordedResult, setRecordedResult] = useState<SelfReportedResult | null>(null)
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const animationsActive = animationEnabled && !prefersReducedMotion
+
+  useEffect(() => {
+    function handleNumberKey(event: KeyboardEvent) {
+      const activeElement = document.activeElement
+      const isTypingTarget =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLSelectElement ||
+        activeElement instanceof HTMLTextAreaElement ||
+        activeElement?.getAttribute('contenteditable') === 'true'
+      const answerIndex = Number(event.key) - 1
+
+      if (
+        isTypingTarget ||
+        isCardFlipped ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        !Number.isInteger(answerIndex) ||
+        answerIndex < 0 ||
+        answerIndex >= question.choices.length
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      setSelectedAnswer(question.choices[answerIndex])
+    }
+
+    window.addEventListener('keydown', handleNumberKey)
+    return () => window.removeEventListener('keydown', handleNumberKey)
+  }, [isCardFlipped, question.choices])
 
   function handleFlip() {
     if (selectedAnswer !== null) {
@@ -56,13 +112,16 @@ function QuestionCardContent({
   const cardClassName = [
     'question-card',
     isCardFlipped ? 'question-card--flipped' : '',
-    animationEnabled ? '' : 'question-card--no-animation',
+    animationsActive ? '' : 'question-card--no-animation',
   ]
     .filter(Boolean)
     .join(' ')
 
   return (
     <section aria-label={questionProgress} className="question-card-scene">
+      <p aria-live="polite" className="sr-only" role="status">
+        {questionProgress}. {question.displayText}
+      </p>
       <p className="question-progress">{questionProgress}</p>
       <div className={cardClassName}>
         <div className="question-card__inner">
@@ -73,7 +132,8 @@ function QuestionCardContent({
           >
             <p className="card-kicker">Solve this problem</p>
             <p className="math-question">{question.displayText}</p>
-            <div aria-label="Answer choices" className="answer-choice-grid">
+            <fieldset className="answer-choice-grid">
+              <legend className="sr-only">Choose an answer</legend>
               {question.choices.map((choice, index) => (
                 <AnswerChoice
                   index={index}
@@ -84,7 +144,7 @@ function QuestionCardContent({
                   value={choice}
                 />
               ))}
-            </div>
+            </fieldset>
             <button
               aria-expanded={isCardFlipped}
               className="button button--primary flip-button"
@@ -124,7 +184,7 @@ function QuestionCardContent({
                 onClick={() => handleResult('correct')}
                 type="button"
               >
-                I Got It Right
+                <span aria-hidden="true">✓</span> I Got It Right
               </button>
               <button
                 className="button result-button result-button--wrong"
@@ -132,7 +192,7 @@ function QuestionCardContent({
                 onClick={() => handleResult('incorrect')}
                 type="button"
               >
-                I Got It Wrong
+                <span aria-hidden="true">↗</span> I Got It Wrong
               </button>
             </div>
             {recordedResult && (
@@ -145,7 +205,7 @@ function QuestionCardContent({
           </section>
         </div>
       </div>
-      <p aria-live="polite" className="sr-only">
+      <p aria-live="polite" className="sr-only" role="status">
         {isCardFlipped
           ? `The answer is revealed. The correct answer is ${question.correctAnswer}.`
           : ''}

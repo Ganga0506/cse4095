@@ -26,6 +26,11 @@ export function AnswerChoice({
         {index + 1}
       </span>
       <span>{value}</span>
+      {isSelected && (
+        <span aria-hidden="true" className="answer-choice__selected-indicator">
+          ✓ Selected
+        </span>
+      )}
     </button>
   )
 }

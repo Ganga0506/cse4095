@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Question } from '../../types'
 
@@ -19,6 +19,10 @@ const question: Question = {
 }
 
 describe('QuestionCard', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   it('requires an answer before the card can be flipped', async () => {
     const user = userEvent.setup()
     render(<QuestionCard currentQuestion={3} question={question} totalQuestions={10} />)
@@ -57,6 +61,78 @@ describe('QuestionCard', () => {
     expect(onResult).toHaveBeenCalledOnce()
     expect(onResult).toHaveBeenCalledWith('correct', 56)
     expect(screen.getByRole('button', { name: /i got it wrong/i })).toBeDisabled()
+    expect(
+      screen.getByText('The answer is revealed. The correct answer is 56.'),
+    ).toHaveAttribute('role', 'status')
+  })
+
+  it('supports Enter, Space, and number keys for answer choices', async () => {
+    const user = userEvent.setup()
+    render(<QuestionCard currentQuestion={1} question={question} />)
+
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Answer choice 1: 48' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: 'Answer choice 1: 48' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    await user.tab()
+    await user.keyboard(' ')
+    expect(screen.getByRole('button', { name: 'Answer choice 2: 54' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    document.body.focus()
+    await user.keyboard('3')
+    expect(screen.getByRole('button', { name: 'Answer choice 3: 56' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('does not use number shortcuts while a form field has focus', async () => {
+    const user = userEvent.setup()
+    render(
+      <>
+        <input aria-label="Practice note" />
+        <QuestionCard currentQuestion={1} question={question} />
+      </>,
+    )
+
+    await user.click(screen.getByRole('textbox', { name: 'Practice note' }))
+    await user.keyboard('1')
+
+    expect(screen.getByRole('button', { name: 'Answer choice 1: 48' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
+  it('uses semantic choices, announces new questions, and respects reduced motion', () => {
+    const addEventListener = vi.fn()
+    const removeEventListener = vi.fn()
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener,
+        removeEventListener,
+      }),
+    )
+
+    render(<QuestionCard currentQuestion={2} question={question} totalQuestions={5} />)
+
+    expect(screen.getByRole('group', { name: 'Choose an answer' })).toBeInTheDocument()
+    expect(screen.getByText('Question 2 of 5. 7 × 8 = ?')).toHaveAttribute(
+      'role',
+      'status',
+    )
+    expect(document.querySelector('.question-card')).toHaveClass(
+      'question-card--no-animation',
+    )
   })
 
   it('resets its answer and flip state for a new question', async () => {
