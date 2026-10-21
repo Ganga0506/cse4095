@@ -178,6 +178,24 @@ export function SettingsPage() {
               ))}
             </select>
           </label>
+          <label className="settings-select" htmlFor="mastery-threshold">
+            Correct review answers to master a pattern
+            <input
+              id="mastery-threshold"
+              max={10}
+              min={1}
+              onChange={(event) =>
+                updateSettings({
+                  masteryThreshold: Math.min(
+                    10,
+                    Math.max(1, Number(event.target.value) || 1),
+                  ),
+                })
+              }
+              type="number"
+              value={settings.masteryThreshold}
+            />
+          </label>
         </fieldset>
 
         <fieldset>

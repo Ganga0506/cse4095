@@ -8,6 +8,7 @@ import {
 import { ProgressBar } from '../components/practice/ProgressBar'
 import { PageContainer } from '../components/layout/PageContainer'
 import { usePracticeSession } from '../hooks/usePracticeSession'
+import { getActiveMistakePatterns } from '../services/mistakePatterns'
 import { isValidPracticeSetup } from '../services/practiceSession'
 import { storageService } from '../services/storage'
 import type { PracticeSetupConfig } from '../types'
@@ -21,6 +22,13 @@ export function PracticeSessionPage() {
   const state = location.state as PracticeSessionLocationState | null
 
   if (!isValidPracticeSetup(state?.configuration)) {
+    return <Navigate replace to="/practice/setup" />
+  }
+
+  if (
+    state.configuration.mode === 'mistake-review' &&
+    getActiveMistakePatterns(storageService.loadMistakePatterns()).length === 0
+  ) {
     return <Navigate replace to="/practice/setup" />
   }
 

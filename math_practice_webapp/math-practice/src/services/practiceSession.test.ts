@@ -16,6 +16,7 @@ const configuration: PracticeSetupConfig = {
   operations: ['addition'],
   difficulty: 1,
   sessionLength: 5,
+  mode: 'regular',
 }
 
 const question: Question = {
@@ -110,5 +111,6 @@ describe('practice session helpers', () => {
     expect(isValidPracticeSetup(configuration)).toBe(true)
     expect(isValidPracticeSetup({ ...configuration, operations: [] })).toBe(false)
     expect(isValidPracticeSetup({ ...configuration, difficulty: 5 as 1 })).toBe(false)
+    expect(isValidPracticeSetup({ ...configuration, mode: 'guided' })).toBe(false)
   })
 })

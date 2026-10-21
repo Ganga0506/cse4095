@@ -328,6 +328,36 @@ h2 {
   grid-template-columns: repeat(2, 1fr);
 }
 
+.review-mode-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 1rem;
+}
+
+.choice-card input:disabled + .choice-card__content {
+  background: #f1f3f8;
+  border-color: #d8deeb;
+  color: #78879c;
+  cursor: not-allowed;
+}
+
+.review-mode-note {
+  background: #eef4ff;
+  border: 2px solid #b9c9f1;
+  border-radius: 1rem;
+  color: #385276;
+  padding: 1.15rem 1.35rem;
+}
+
+.review-mode-note h2 {
+  font-size: 1.3rem;
+}
+
+.review-mode-note p {
+  margin-bottom: 0;
+}
+
 .choice-card,
 .length-option {
   cursor: pointer;
@@ -1032,7 +1062,8 @@ h2 {
   max-width: 28rem;
 }
 
-.settings-select select {
+.settings-select select,
+.settings-select input {
   background: #fff;
   border: 2px solid #cad5f0;
   border-radius: 0.7rem;
@@ -1092,7 +1123,8 @@ h2 {
 
   .feature-grid,
   .operation-grid,
-  .length-grid {
+  .length-grid,
+  .review-mode-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -1144,7 +1176,8 @@ h2 {
   .feature-grid,
   .choice-grid,
   .operation-grid,
-  .length-grid {
+  .length-grid,
+  .review-mode-grid {
     grid-template-columns: 1fr;
   }
 

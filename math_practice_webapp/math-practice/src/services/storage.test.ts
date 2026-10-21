@@ -23,6 +23,7 @@ const configuration: PracticeSetupConfig = {
   operations: ['addition'],
   difficulty: 1,
   sessionLength: 5,
+  mode: 'regular',
 }
 
 const question: Question = {
@@ -156,6 +157,21 @@ describe('storageService', () => {
     )
     expect(storageService.loadSettings()).toEqual(defaultSettings)
     expect(storageService.loadMistakePatterns()).toEqual([mistakePattern])
+  })
+
+  it('migrates the former mastery threshold to the new default of three', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        schemaVersion: 2,
+        settings: { ...defaultSettings, masteryThreshold: 80 },
+        sessions: [],
+        attempts: [],
+        mistakePatterns: [],
+      }),
+    )
+
+    expect(storageService.loadSettings().masteryThreshold).toBe(3)
   })
 
   it('persists validated mistake patterns', () => {

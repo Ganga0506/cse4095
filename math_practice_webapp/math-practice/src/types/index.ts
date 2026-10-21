@@ -9,6 +9,7 @@ export type {
   PracticeAttempt,
   PracticeSession,
   PracticeSetupConfig,
+  PracticeMode,
   SessionLength,
 } from './session'
 export type { AppSettings } from './settings'

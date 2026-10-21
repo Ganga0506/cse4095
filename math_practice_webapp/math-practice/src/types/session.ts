@@ -1,11 +1,13 @@
 import type { DifficultyLevel, MathOperation, QuestionSource } from './question'
 
 export type SessionLength = 5 | 10 | 20 | 'continuous'
+export type PracticeMode = 'regular' | 'mistake-review'
 
 export interface PracticeSetupConfig {
   operations: MathOperation[]
   difficulty: DifficultyLevel
   sessionLength: SessionLength
+  mode: PracticeMode
 }
 
 export interface PracticeAttempt {
@@ -19,6 +21,7 @@ export interface PracticeAttempt {
   selfReportedCorrect: boolean
   difficulty: DifficultyLevel
   source: QuestionSource
+  mistakePatternId?: string
   attemptedAt: string
   sessionId: string
 }

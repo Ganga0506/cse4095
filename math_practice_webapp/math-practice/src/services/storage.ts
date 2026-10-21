@@ -8,7 +8,7 @@ import type {
   SessionLength,
 } from '../types'
 
-export const CURRENT_STORAGE_SCHEMA_VERSION = 2
+export const CURRENT_STORAGE_SCHEMA_VERSION = 3
 export const STORAGE_KEY = 'math-practice:data'
 export const MAX_STORED_SESSIONS = 50
 
@@ -36,6 +36,13 @@ const validSessionLengths: SessionLength[] = [5, 10, 20, 'continuous']
 // the matching version to the next version.
 const migrations: Record<number, StorageMigration> = {
   1: (data) => ({ ...data, schemaVersion: 2, mistakePatterns: [] }),
+  2: (data) => ({
+    ...data,
+    schemaVersion: 3,
+    settings: isRecord(data.settings)
+      ? { ...data.settings, masteryThreshold: defaultSettings.masteryThreshold }
+      : data.settings,
+  }),
 }
 
 export const defaultSettings: AppSettings = {
@@ -45,7 +52,7 @@ export const defaultSettings: AppSettings = {
   defaultSessionLength: 10,
   defaultDifficulty: 1,
   defaultOperations: [],
-  masteryThreshold: 80,
+  masteryThreshold: 3,
 }
 
 function createDefaultData(): StoredAppData {
@@ -104,7 +111,7 @@ export function isValidSettings(value: unknown): value is AppSettings {
     Array.isArray(value.defaultOperations) &&
     value.defaultOperations.every(isOperation) &&
     isFiniteNumber(value.masteryThreshold) &&
-    value.masteryThreshold >= 0 &&
+    value.masteryThreshold >= 1 &&
     value.masteryThreshold <= 100
   )
 }
@@ -147,6 +154,8 @@ export function isValidPracticeAttempt(value: unknown): value is PracticeAttempt
     typeof value.selfReportedCorrect === 'boolean' &&
     isDifficulty(value.difficulty) &&
     (value.source === 'regular' || value.source === 'mistake-review') &&
+    (value.mistakePatternId === undefined ||
+      isNonEmptyString(value.mistakePatternId)) &&
     isValidTimestamp(value.attemptedAt) &&
     isNonEmptyString(value.sessionId)
   )

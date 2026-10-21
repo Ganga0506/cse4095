@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PracticeSetupConfig } from '../types'
+import type { MistakePattern } from '../types'
 import { storageService } from '../services/storage'
 
 import { PracticeSessionPage } from './PracticeSessionPage'
@@ -14,6 +15,20 @@ const fiveQuestionConfiguration: PracticeSetupConfig = {
   operations: ['addition'],
   difficulty: 1,
   sessionLength: 5,
+  mode: 'regular',
+}
+
+const reviewPattern: MistakePattern = {
+  id: 'mistake-review-1',
+  operation: 'addition',
+  firstOperand: 4,
+  secondOperand: 3,
+  correctAnswer: 7,
+  difficulty: 1,
+  incorrectCount: 1,
+  similarCorrectCount: 0,
+  lastIncorrectAt: '2026-10-21T10:00:00.000Z',
+  mastered: false,
 }
 
 function renderSession(configuration?: PracticeSetupConfig) {
@@ -57,6 +72,14 @@ afterEach(() => {
 describe('PracticeSessionPage', () => {
   it('redirects to setup when session setup data is missing', async () => {
     renderSession()
+
+    expect(
+      await screen.findByRole('heading', { name: /let's make your math plan/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('redirects to setup when a review session has no active mistake patterns', async () => {
+    renderSession({ ...fiveQuestionConfiguration, mode: 'mistake-review' })
 
     expect(
       await screen.findByRole('heading', { name: /let's make your math plan/i }),
@@ -129,6 +152,30 @@ describe('PracticeSessionPage', () => {
       difficulty: 1,
       incorrectCount: 1,
       similarCorrectCount: 0,
+    })
+  })
+
+  it('records correct review progress on the source mistake pattern', async () => {
+    storageService.saveMistakePatterns([reviewPattern])
+    const user = userEvent.setup()
+    renderSession({
+      operations: ['addition'],
+      difficulty: 1,
+      sessionLength: 5,
+      mode: 'mistake-review',
+    })
+
+    await answerCurrentQuestion(user)
+    await screen.findByText('Question 2 of 5')
+
+    expect(storageService.loadMistakePatterns()[0]).toMatchObject({
+      id: reviewPattern.id,
+      similarCorrectCount: 1,
+      mastered: false,
+    })
+    expect(storageService.loadAttempts()[0]).toMatchObject({
+      source: 'mistake-review',
+      mistakePatternId: reviewPattern.id,
     })
   })
 })

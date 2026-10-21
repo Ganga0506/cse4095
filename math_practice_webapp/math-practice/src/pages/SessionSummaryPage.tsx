@@ -110,7 +110,9 @@ export function SessionSummaryPage() {
         </button>
         <button
           className="button button--secondary"
-          onClick={() => navigate('/practice/setup')}
+          onClick={() =>
+            navigate('/practice/setup', { state: { mode: 'mistake-review' } })
+          }
           type="button"
         >
           Practice Mistakes

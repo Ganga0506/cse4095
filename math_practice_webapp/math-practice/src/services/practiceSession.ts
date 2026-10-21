@@ -4,6 +4,7 @@ import type {
   PracticeAttempt,
   PracticeSession,
   PracticeSetupConfig,
+  PracticeMode,
   Question,
   SessionLength,
 } from '../types'
@@ -22,6 +23,7 @@ const validOperations: MathOperation[] = [
 
 const validDifficulties: DifficultyLevel[] = [1, 2, 3, 4]
 const validSessionLengths: SessionLength[] = [5, 10, 20, 'continuous']
+const validPracticeModes: PracticeMode[] = ['regular', 'mistake-review']
 
 export function isValidPracticeSetup(
   configuration: unknown,
@@ -34,10 +36,11 @@ export function isValidPracticeSetup(
 
   return Boolean(
     Array.isArray(candidate.operations) &&
-    candidate.operations.length > 0 &&
+    (candidate.mode === 'mistake-review' || candidate.operations.length > 0) &&
     candidate.operations.every((operation) => validOperations.includes(operation)) &&
     validDifficulties.includes(candidate.difficulty as DifficultyLevel) &&
-    validSessionLengths.includes(candidate.sessionLength as SessionLength),
+    validSessionLengths.includes(candidate.sessionLength as SessionLength) &&
+    validPracticeModes.includes(candidate.mode as PracticeMode),
   )
 }
 
@@ -75,6 +78,9 @@ export function createPracticeAttempt(
     selfReportedCorrect,
     difficulty: question.difficulty,
     source: question.source,
+    ...(question.mistakePatternId
+      ? { mistakePatternId: question.mistakePatternId }
+      : {}),
     attemptedAt: new Date().toISOString(),
     sessionId: session.id,
   }
